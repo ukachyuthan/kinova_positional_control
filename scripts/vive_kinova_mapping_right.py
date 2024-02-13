@@ -124,7 +124,7 @@ class ViveMapping:
 
         # # Topic subscriber:
         rospy.Subscriber(
-            '/Left_Hand',
+            '/Right_Hand',
             TransformStamped,
             self.__input_pose_callback,
         )
