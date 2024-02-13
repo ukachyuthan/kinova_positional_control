@@ -15,7 +15,7 @@
     <!-- Mounting angles [degrees]: "[0.0, 0.0, 0.0]" - on the table. -->
     <arg 
     name="mounting_angles_deg" 
-    default="[180.0, 0.0, 0.0]"/> 
+    default="[0.0, 0.0, 0.0]"/> 
 
     <!-- Move to this Z height [meters] in Kinova CS before moving to starting
     position in Global CS. 0.0 value skips moving to safe Z height.
@@ -47,7 +47,7 @@
     <!-- If set to "true" enable rosbag recording of nodes' outputs. -->
     <arg 
     name="enable_rosbag_recording" 
-    default="true"/>
+    default="false"/>
 
     <!-- ======================== END OF SETTINGS ========================== -->
     
