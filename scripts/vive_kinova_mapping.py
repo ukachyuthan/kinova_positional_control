@@ -71,7 +71,6 @@ class ViveMapping:
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
-        self.__oculus_buttons = ControllerButtons()
 
         # # Public variables:
         self.is_initialized = True

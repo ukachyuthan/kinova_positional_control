@@ -71,7 +71,6 @@ class ViveMapping:
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
-        self.__oculus_buttons = ControllerButtons()
 
         # # Public variables:
         self.is_initialized = True
@@ -130,7 +129,7 @@ class ViveMapping:
         )
 
         rospy.Subscriber(
-            '/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_b
+            '/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_b
         )
 
     # # Dependency status callbacks:
@@ -175,24 +174,24 @@ class ViveMapping:
             self.rec_100 += 1
             self.trigger_press = True
             # vive_menu += 1
-            rospy.sleep(0.5)
+            # rospy.sleep(0.5)
 
         if self.vive_buttons[2] == 1:  # Side button to start control
             self.flagg = 1
-            rospy.sleep(0.5)
+            # rospy.sleep(0.5)
             # print("started")
 
         if self.vive_buttons[0] == 1:
             self.vive_menu += 1
             # print("home", vive_menu)
-            rospy.sleep(0.5)
+            # rospy.sleep(0.5)
 
         if self.vive_buttons[2] == 1 and self.vive_axes[
             0] == 0:  # Side button as the stop button
             # if vive_menu % 2 == 0 and vive_menu != 0:
             self.vive_stop += 1
             # print("pause", self.vive_stop)
-            rospy.sleep(0.5)
+            # rospy.sleep(0.5)
 
     # # Private methods:
     def __check_initialization(self):
@@ -342,7 +341,7 @@ def main():
     """
 
     rospy.init_node(
-        'vive_mapping',
+        'vive_mapping_right',
         log_level=rospy.INFO,  # TODO: Make this a launch file parameter.
     )
 

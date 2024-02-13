@@ -71,7 +71,6 @@ class ViveMapping:
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
-        self.__oculus_buttons = ControllerButtons()
 
         # # Public variables:
         self.is_initialized = True
@@ -124,13 +123,13 @@ class ViveMapping:
 
         # # Topic subscriber:
         rospy.Subscriber(
-            '/Right_Hand',
+            '/Left_Hand',
             TransformStamped,
             self.__input_pose_callback,
         )
 
         rospy.Subscriber(
-            '/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_b
+            '/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_b
         )
 
     # # Dependency status callbacks:
@@ -185,7 +184,7 @@ class ViveMapping:
         if self.vive_buttons[0] == 1:
             self.vive_menu += 1
             # print("home", vive_menu)
-            rospy.sleep(0.5)
+            # rospy.sleep(0.5)
 
         if self.vive_buttons[2] == 1 and self.vive_axes[
             0] == 0:  # Side button as the stop button
@@ -342,7 +341,7 @@ def main():
     """
 
     rospy.init_node(
-        'vive_mapping',
+        'vive_mapping_left',
         log_level=rospy.INFO,  # TODO: Make this a launch file parameter.
     )
 
