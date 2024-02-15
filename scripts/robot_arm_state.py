@@ -240,11 +240,11 @@ class scalingdeterminer:
 
     def table_scaling(self):
 
-        if self.left_arm_pose['position'][2] <= -0.2:
+        if self.left_arm_pose['position'][2] <= -0.3:
 
             self.scaling_arm_left_table = 0.5
 
-        elif self.left_arm_pose['position'][2] <= -0.4:
+        elif self.left_arm_pose['position'][2] <= -0.15:
 
             self.scaling_arm_left_table = 0.75
 
@@ -252,11 +252,11 @@ class scalingdeterminer:
 
             self.scaling_arm_left_table = 1
 
-        if self.right_arm_pose['position'][2] <= -0.2:
+        if self.right_arm_pose['position'][2] <= -0.3:
 
             self.scaling_arm_right_table = 0.5
 
-        elif self.right_arm_pose['position'][2] <= -0.4:
+        elif self.right_arm_pose['position'][2] <= -0.15:
 
             self.scaling_arm_right_table = 0.75
 

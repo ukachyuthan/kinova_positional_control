@@ -253,8 +253,8 @@ class KinovaGripperControl:
 
         if self.__activate_force_grasping:
 
-            if self.__target_gripper_current < 0.04:
-                self.__target_gripper_current = 0.04
+            if self.__target_gripper_current < 0.08:
+                self.__target_gripper_current = 0.08
 
             # Close the gripper until the current raises to a value higher than
             # 0.04, indicating contact with an object.
