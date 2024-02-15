@@ -53,16 +53,9 @@ class ViveMapping:
         self.HEADSET_MODE = headset_mode
 
         self.gripper_val = 0
-
-        self.rec_100 = 0
-        self.flagg = 0
-
-        self.vive_stop = 0
-
-        self.vive_menu = 0
-
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
+        self.trigger_press = False
 
         self.trigger_press = False
 
@@ -171,27 +164,7 @@ class ViveMapping:
         self.trigger_press = False
 
         if self.gripper_val == 1:  # Trigger button to hold the gripper state
-            self.rec_100 += 1
             self.trigger_press = True
-            # vive_menu += 1
-            rospy.sleep(0.5)
-
-        if self.vive_buttons[2] == 1:  # Side button to start control
-            self.flagg = 1
-            rospy.sleep(0.5)
-            # print("started")
-
-        if self.vive_buttons[0] == 1:
-            self.vive_menu += 1
-            # print("home", vive_menu)
-            rospy.sleep(0.5)
-
-        if self.vive_buttons[2] == 1 and self.vive_axes[
-            0] == 0:  # Side button as the stop button
-            # if vive_menu % 2 == 0 and vive_menu != 0:
-            self.vive_stop += 1
-            # print("pause", self.vive_stop)
-            rospy.sleep(0.5)
 
     # # Private methods:
     def __check_initialization(self):
