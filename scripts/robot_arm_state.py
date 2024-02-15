@@ -140,7 +140,7 @@ class scalingdeterminer:
             )
         ) * 2 * 180 / np.pi
 
-        if distance_change > 0.05 or orientation_change > 10:
+        if distance_change < 0.05 or orientation_change < 10:
 
             self.last_movement_time_left = rospy.Time.now()
             self.arm_hasnt_moved()
@@ -189,7 +189,7 @@ class scalingdeterminer:
             )
         ) * 2 * 180 / np.pi
 
-        if distance_change > 0.05 or orientation_change > 10:
+        if distance_change < 0.05 or orientation_change < 10:
 
             self.last_movement_time_right = rospy.Time.now()
             self.arm_hasnt_moved()
