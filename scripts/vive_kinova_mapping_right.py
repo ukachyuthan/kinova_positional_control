@@ -265,9 +265,9 @@ class ViveMapping:
             )
 
         pose_message = Pose()
-        pose_message.position.x = self.__input_pose['position'][0]
-        pose_message.position.y = self.__input_pose['position'][1]
-        pose_message.position.z = self.__input_pose['position'][2]
+        pose_message.position.x = self.__input_pose['position'][0] * 0.8
+        pose_message.position.y = self.__input_pose['position'][1] * 0.8
+        pose_message.position.z = self.__input_pose['position'][2] * 0.8
 
         pose_message.orientation.w = self.__input_pose['orientation'][0]
         pose_message.orientation.x = self.__input_pose['orientation'][1]
