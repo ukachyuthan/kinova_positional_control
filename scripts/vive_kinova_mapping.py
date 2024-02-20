@@ -23,6 +23,7 @@ from oculus_ros.msg import (ControllerButtons)
 
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
+from tf.transformations import quaternion_from_euler, quaternion_multiply
 
 
 class ViveMapping:
@@ -52,6 +53,9 @@ class ViveMapping:
         self.CONTROLLER_SIDE = controller_side
         self.HEADSET_MODE = headset_mode
 
+        self.__control_mode = 'full'
+        self.__mode_state_machine_state = 0
+
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
@@ -61,6 +65,11 @@ class ViveMapping:
 
         # # Private variables:
         self.__input_pose = {
+            'position': np.array([0.0, 0.0, 0.0]),
+            'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
+        }
+
+        self.__last_input_pose = {
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
@@ -167,6 +176,35 @@ class ViveMapping:
             self.trigger_press = True
 
     # # Private methods:
+    def __mode_state_machine(self, button):
+        """
+        
+        """
+
+        # State 0: Button was pressed.
+        if (self.__mode_state_machine_state == 0 and button):
+
+            self.__mode_state_machine_state = 1
+            self.__control_mode = 'full'
+            print('_________full')
+
+        # State 1: Button was released.
+        elif (self.__mode_state_machine_state == 1 and not button):
+
+            self.__mode_state_machine_state = 2
+
+        # State 2: Button was pressed.
+        elif (self.__mode_state_machine_state == 2 and button):
+
+            self.__mode_state_machine_state = 3
+            self.__control_mode = 'position'
+            print('__________trackpad')
+
+        # State 3: Button was released.
+        elif (self.__mode_state_machine_state == 3 and not button):
+
+            self.__mode_state_machine_state = 0
+
     def __check_initialization(self):
         """Monitors required criteria and sets is_initialized variable.
 
@@ -266,17 +304,58 @@ class ViveMapping:
                 )
             )
 
-        pose_message = Pose()
-        pose_message.position.x = self.__input_pose['position'][0]
-        pose_message.position.y = self.__input_pose['position'][1]
-        pose_message.position.z = self.__input_pose['position'][2]
+        if self.__control_mode == 'full':
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][0]
+            pose_message.position.y = self.__input_pose['position'][1]
+            pose_message.position.z = self.__input_pose['position'][2]
 
-        pose_message.orientation.w = self.__input_pose['orientation'][0]
-        pose_message.orientation.x = self.__input_pose['orientation'][1]
-        pose_message.orientation.y = self.__input_pose['orientation'][2]
-        pose_message.orientation.z = self.__input_pose['orientation'][3]
+            pose_message.orientation.w = self.__input_pose['orientation'][0]
+            pose_message.orientation.x = self.__input_pose['orientation'][1]
+            pose_message.orientation.y = self.__input_pose['orientation'][2]
+            pose_message.orientation.z = self.__input_pose['orientation'][3]
 
-        self.__teleoperation_pose.publish(pose_message)
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
+
+        elif self.__control_mode == 'position':
+            angle_z = -self.vive_axes[0] / 20000
+            angle_y = self.vive_axes[1] / 20000
+
+            euler_quaternion = quaternion_from_euler(0, angle_y, angle_z)
+
+            combined_quaternion = quaternion_multiply(
+                self.__last_input_pose['orientation'],
+                euler_quaternion,
+            )
+
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][0]
+            pose_message.position.y = self.__input_pose['position'][1]
+            pose_message.position.z = self.__input_pose['position'][2]
+
+            pose_message.orientation.w = combined_quaternion[0]
+            pose_message.orientation.x = combined_quaternion[1]
+            pose_message.orientation.y = combined_quaternion[2]
+            pose_message.orientation.z = combined_quaternion[3]
+
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
+
+            self.__last_input_pose['orientation'] = copy.deepcopy(
+                combined_quaternion
+            )
+            print(
+                np.rad2deg(
+                    np.array(
+                        transformations.euler_from_quaternion(
+                            self.__last_input_pose['orientation']
+                        )
+                    )
+                )
+            )
 
     # # Public methods:
     def main_loop(self):
@@ -288,6 +367,8 @@ class ViveMapping:
 
         if not self.__is_initialized:
             return
+
+        self.__mode_state_machine(self.vive_buttons[0])
 
         self.__publish_teleoperation_pose()
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])

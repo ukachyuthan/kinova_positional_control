@@ -72,7 +72,7 @@ class KinovaTeleoperation:
         self.__tracking_state_machine_state = 0
         self.__gripper_state_machine_state = 0
         self.__mode_state_machine_state = 0
-        self.__control_mode = 'position'
+        self.__control_mode = 'full'
 
         self.__pose_tracking = False
 
@@ -621,7 +621,7 @@ class KinovaTeleoperation:
         )
 
         # Use oculus orientation.
-        if self.__control_mode == 'full':
+        if self.__control_mode == 'full' or self.__control_mode == 'position':
             compensated_input_pose['orientation'] = (
                 self.__input_pose['orientation']
             )
