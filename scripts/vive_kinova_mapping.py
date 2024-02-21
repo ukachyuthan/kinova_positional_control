@@ -186,7 +186,6 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 1
             self.__control_mode = 'full'
-            print('_________full')
 
         # State 1: Button was released.
         elif (self.__mode_state_machine_state == 1 and not button):
@@ -198,7 +197,6 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 3
             self.__control_mode = 'position'
-            print('__________trackpad')
 
         # State 3: Button was released.
         elif (self.__mode_state_machine_state == 3 and not button):
@@ -320,10 +318,10 @@ class ViveMapping:
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
         elif self.__control_mode == 'position':
-            angle_z = -self.vive_axes[0] / 20000
-            angle_y = self.vive_axes[1] / 20000
+            angle_z = -self.vive_axes[0] / 7500
+            angle_y = self.vive_axes[1] / 7500
 
-            euler_quaternion = quaternion_from_euler(0, angle_y, angle_z)
+            euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
 
             combined_quaternion = quaternion_multiply(
                 self.__last_input_pose['orientation'],
@@ -346,15 +344,6 @@ class ViveMapping:
 
             self.__last_input_pose['orientation'] = copy.deepcopy(
                 combined_quaternion
-            )
-            print(
-                np.rad2deg(
-                    np.array(
-                        transformations.euler_from_quaternion(
-                            self.__last_input_pose['orientation']
-                        )
-                    )
-                )
             )
 
     # # Public methods:
