@@ -20,8 +20,6 @@ from std_msgs.msg import (Bool)
 from std_srvs.srv import (SetBool)
 from geometry_msgs.msg import (Pose)
 
-from oculus_ros.msg import (ControllerButtons)
-
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
 from tf.transformations import quaternion_from_euler, quaternion_multiply
