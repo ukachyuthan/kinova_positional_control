@@ -23,6 +23,7 @@ from oculus_ros.msg import (ControllerButtons)
 
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
+from tf.transformations import quaternion_from_euler, quaternion_multiply
 
 
 class ViveMapping:
@@ -52,6 +53,13 @@ class ViveMapping:
         self.CONTROLLER_SIDE = controller_side
         self.HEADSET_MODE = headset_mode
 
+        self.__control_mode = 'full'
+        self.__mode_state_machine_state = 0
+
+        self.__scaling_motion = "regular"
+        self.__scaling_state_machine_state = 0
+        self.scaled_value = 0.75
+
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
@@ -61,6 +69,11 @@ class ViveMapping:
 
         # # Private variables:
         self.__input_pose = {
+            'position': np.array([0.0, 0.0, 0.0]),
+            'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
+        }
+
+        self.__last_input_pose = {
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
@@ -163,10 +176,83 @@ class ViveMapping:
 
         self.trigger_press = False
 
+        self.__scaling_state_machine(self.vive_buttons[3])
+
         if self.gripper_val == 1:  # Trigger button to hold the gripper state
             self.trigger_press = True
 
     # # Private methods:
+    def scaling_distance(self, new_loc, old_loc, scaling_value):
+
+        a = copy.deepcopy(new_loc)
+        b = copy.deepcopy(old_loc)
+
+        x_val = a[0] - b[0]
+        y_val = a[1] - b[1]
+        z_val = a[2] - b[2]
+
+        return np.array(
+            [
+                x_val * scaling_value, y_val * scaling_value,
+                z_val * scaling_value
+            ]
+        )
+
+    def __scaling_state_machine(self, button):
+        """
+        Used to track if continous or discrete orientation control is desired
+        """
+
+        # State 0: Button was pressed.
+        if (self.__scaling_state_machine_state == 0 and button):
+
+            self.__scaling_state_machine_state = 1
+            self.__scaling_motion = 'slow'
+            print("______slow")
+
+        # State 1: Button was released.
+        elif (self.__scaling_state_machine_state == 1 and not button):
+
+            self.__scaling_state_machine_state = 2
+
+        # State 2: Button was released.
+        elif (self.__scaling_state_machine_state == 2 and button):
+
+            self.__scaling_state_machine_state = 3
+            self.__scaling_motion = 'regular'
+            print("___regular")
+
+        elif (self.__scaling_state_machine_state == 3 and not button):
+
+            self.__scaling_state_machine_state = 0
+
+    def __mode_state_machine(self, button):
+        """
+        Used to track if continous or discrete orientation control is desired
+        """
+
+        # State 0: Button was pressed.
+        if (self.__mode_state_machine_state == 0 and button):
+
+            self.__mode_state_machine_state = 1
+            self.__control_mode = 'full'
+
+        # State 1: Button was released.
+        elif (self.__mode_state_machine_state == 1 and not button):
+
+            self.__mode_state_machine_state = 2
+
+        # State 2: Button was pressed.
+        elif (self.__mode_state_machine_state == 2 and button):
+
+            self.__mode_state_machine_state = 3
+            self.__control_mode = 'position'
+
+        # State 3: Button was released.
+        elif (self.__mode_state_machine_state == 3 and not button):
+
+            self.__mode_state_machine_state = 0
+
     def __check_initialization(self):
         """Monitors required criteria and sets is_initialized variable.
 
@@ -238,9 +324,9 @@ class ViveMapping:
 
         self.__node_is_initialized.publish(self.__is_initialized)
 
-    def __publish_teleoperation_pose(self):
+    def __publish_teleoperation_pose_regular(self):
         """
-        
+        Control input for regular scaling
         """
 
         corrected_input_pose = copy.deepcopy(self.__input_pose)
@@ -266,17 +352,144 @@ class ViveMapping:
                 )
             )
 
-        pose_message = Pose()
-        pose_message.position.x = self.__input_pose['position'][0]
-        pose_message.position.y = self.__input_pose['position'][1]
-        pose_message.position.z = self.__input_pose['position'][2]
+        if self.__control_mode == 'full':
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][0]
+            pose_message.position.y = self.__input_pose['position'][1]
+            pose_message.position.z = self.__input_pose['position'][2]
 
-        pose_message.orientation.w = self.__input_pose['orientation'][0]
-        pose_message.orientation.x = self.__input_pose['orientation'][1]
-        pose_message.orientation.y = self.__input_pose['orientation'][2]
-        pose_message.orientation.z = self.__input_pose['orientation'][3]
+            pose_message.orientation.w = self.__input_pose['orientation'][0]
+            pose_message.orientation.x = self.__input_pose['orientation'][1]
+            pose_message.orientation.y = self.__input_pose['orientation'][2]
+            pose_message.orientation.z = self.__input_pose['orientation'][3]
 
-        self.__teleoperation_pose.publish(pose_message)
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
+
+        elif self.__control_mode == 'position':
+            angle_z = -self.vive_axes[0] / 7500
+            angle_y = self.vive_axes[1] / 7500
+
+            euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
+
+            combined_quaternion = quaternion_multiply(
+                self.__last_input_pose['orientation'],
+                euler_quaternion,
+            )
+
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][0]
+            pose_message.position.y = self.__input_pose['position'][1]
+            pose_message.position.z = self.__input_pose['position'][2]
+
+            pose_message.orientation.w = combined_quaternion[0]
+            pose_message.orientation.x = combined_quaternion[1]
+            pose_message.orientation.y = combined_quaternion[2]
+            pose_message.orientation.z = combined_quaternion[3]
+
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
+
+            self.__last_input_pose['orientation'] = copy.deepcopy(
+                combined_quaternion
+            )
+
+    def __publish_teleoperation_pose_scaled(self):
+        """
+        Control input for scaled motion
+        """
+
+        corrected_input_pose = copy.deepcopy(self.__input_pose)
+
+        # # STEP 1: Table or Head mode correction.
+        # If the headset is located on table invert position X and Y axis,
+        # rotate orientation quaternion by 180 degrees around Z.
+        if self.HEADSET_MODE == 'table':
+            corrected_input_pose['position'][0] = (
+                -1 * self.__input_pose['position'][0]
+            )
+            corrected_input_pose['position'][1] = (
+                -1 * self.__input_pose['position'][1]
+            )
+
+            corrected_input_pose['orientation'] = (
+                transformations.quaternion_multiply(
+                    transformations.quaternion_about_axis(
+                        np.deg2rad(180),
+                        (0, 0, 1),
+                    ),
+                    corrected_input_pose['orientation'],
+                )
+            )
+
+        scale_correction = self.scaling_distance(
+            self.__input_pose['position'], self.__last_input_pose['position'],
+            self.scaled_value
+        )
+
+        if self.__control_mode == 'full':
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][
+                0] - scale_correction[0]
+            pose_message.position.y = self.__input_pose['position'][
+                1] - scale_correction[1]
+            pose_message.position.z = self.__input_pose['position'][
+                2] - scale_correction[2]
+
+            pose_message.orientation.w = self.__input_pose['orientation'][0]
+            pose_message.orientation.x = self.__input_pose['orientation'][1]
+            pose_message.orientation.y = self.__input_pose['orientation'][2]
+            pose_message.orientation.z = self.__input_pose['orientation'][3]
+
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
+
+            self.__last_input_pose['position'] = np.asarray(
+                [
+                    pose_message.position.x, pose_message.position.y,
+                    pose_message.position.z
+                ]
+            )
+
+        elif self.__control_mode == 'position':
+            angle_z = -self.vive_axes[0] / 7500
+            angle_y = self.vive_axes[1] / 7500
+
+            euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
+
+            combined_quaternion = quaternion_multiply(
+                self.__last_input_pose['orientation'],
+                euler_quaternion,
+            )
+
+            pose_message = Pose()
+            pose_message.position.x = self.__input_pose['position'][
+                0] - scale_correction[0]
+            pose_message.position.y = self.__input_pose['position'][
+                1] - scale_correction[1]
+            pose_message.position.z = self.__input_pose['position'][
+                2] - scale_correction[2]
+
+            pose_message.orientation.w = combined_quaternion[0]
+            pose_message.orientation.x = combined_quaternion[1]
+            pose_message.orientation.y = combined_quaternion[2]
+            pose_message.orientation.z = combined_quaternion[3]
+
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose['position'] = np.asarray(
+                [
+                    pose_message.position.x, pose_message.position.y,
+                    pose_message.position.z
+                ]
+            )
+
+            self.__last_input_pose['orientation'] = copy.deepcopy(
+                combined_quaternion
+            )
 
     # # Public methods:
     def main_loop(self):
@@ -289,7 +502,14 @@ class ViveMapping:
         if not self.__is_initialized:
             return
 
-        self.__publish_teleoperation_pose()
+        self.__mode_state_machine(self.vive_buttons[0])
+        self.__scaling_state_machine(self.vive_buttons[3])
+
+        if self.__scaling_motion == 'regular':
+            self.__publish_teleoperation_pose_regular()
+        elif self.__scaling_motion == 'slow':
+            self.__publish_teleoperation_pose_scaled()
+
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])
         self.__teleoperation_gripper_button.publish(self.trigger_press)
         self.__teleoperation_mode_button.publish(self.vive_buttons[0])
