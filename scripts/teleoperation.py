@@ -223,7 +223,7 @@ class KinovaTeleoperation:
             return success, message
 
         if request.data and not self.__tracking_service_active:
-            self.__tracking_service_active = True
+            # self.__tracking_service_active = True
 
             rospy.logwarn(
                 (
