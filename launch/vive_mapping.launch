@@ -17,6 +17,11 @@
     name="controller_side" 
     default="right"/>
 
+    <!-- Orientation control: full or hybrid (trackpad/controller motion) -->
+    <arg 
+    name="orientation" 
+    default="true"/>
+
     <!-- If any of dependency or optional subfiles should not be launched (or
     are launched separately) set corresponding argument to "false". -->
     <arg 
@@ -43,8 +48,25 @@
         </include>
     </group>
 
-    <!-- Oculus mapping: -->
-    <group ns="/$(arg robot_name)">
+    <!-- Vive mapping: -->
+    <group if="$(arg orientation)">
+        <node 
+        pkg="kinova_positional_control" 
+        type="vive_kinova_mapping_hybrid.py" 
+        name="vive_kinova_mapping" 
+        output="screen">
+            <param 
+            name="node_frequency" 
+            value="$(arg node_frequency)"/>
+            <param 
+            name="robot_name" 
+            value="$(arg robot_name)"/>
+            <param 
+            name="controller_side" 
+            value="$(arg controller_side)"/>
+        </node>
+    </group>
+    <group unless="$(arg orientation)">
         <node 
         pkg="kinova_positional_control" 
         type="vive_kinova_mapping.py" 
