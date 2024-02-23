@@ -72,7 +72,6 @@ class ViveMapping:
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
-        self.trigger_press = False
 
         self.trigger_press = False
 
@@ -83,11 +82,6 @@ class ViveMapping:
         }
 
         self.__last_input_pose = {
-            'position': np.array([0.0, 0.0, 0.0]),
-            'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
-        }
-
-        self.__scaled_motion_input = {
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
@@ -112,10 +106,6 @@ class ViveMapping:
         # # Service provider:
 
         # # Service subscriber:
-        self.__teleoperation_enable_tracking = rospy.ServiceProxy(
-            f'/{self.ROBOT_NAME}/teleoperation/enable_tracking',
-            SetBool,
-        )
         self.__teleoperation_calculate_compesation = rospy.ServiceProxy(
             f'/{self.ROBOT_NAME}/teleoperation/calculate_compesation',
             CalculateCompensation,
@@ -214,7 +204,6 @@ class ViveMapping:
         self.scaled_value = scaling_array.data[0]
 
     # # Private methods:
-
     def __scaling_value_state_machine(self):
         """
         

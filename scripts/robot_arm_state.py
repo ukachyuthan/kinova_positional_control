@@ -287,13 +287,13 @@ class scalingdeterminer:
 
         array_data = Float64MultiArray()
 
-        if self.left_arm_motion_physical >= 80:
+        # if self.left_arm_motion_physical >= 80:
 
-            self.left_disengage = 1
+        #     self.left_disengage = 1
 
-        if self.right_arm_motion_physical >= 80:
+        # if self.right_arm_motion_physical >= 80:
 
-            self.right_disengage = 1
+        #     self.right_disengage = 1
 
         array_data.data = [
             scaling_value_left, scaling_value_right, self.left_disengage,
