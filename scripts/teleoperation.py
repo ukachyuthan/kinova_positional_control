@@ -24,6 +24,7 @@ from geometry_msgs.msg import (Pose)
 from kinova_positional_control.srv import (
     GripperForceGrasping,
     GripperPosition,
+    CalculateCompensation,
 )
 
 
@@ -141,6 +142,12 @@ class KinovaTeleoperation:
             self.__enable_full_mode_handler,
         )
 
+        rospy.Service(
+            f'/{self.ROBOT_NAME}/teleoperation/calculate_compesation',
+            CalculateCompensation,
+            self.__calculate_compesation_handler,
+        )
+
         # # Service subscriber:
         self.__gripper_force_grasping = rospy.ServiceProxy(
             f'/{self.ROBOT_NAME}/gripper/force_grasping',
@@ -235,7 +242,7 @@ class KinovaTeleoperation:
 
             self.__calculate_compensation()
             self.__pose_tracking = True
-            self.__tracking_state_machine_state = 0
+            self.__tracking_state_machine_state = 2
 
             message = 'pose_tracking was enabled.'
             success = True
@@ -302,6 +309,24 @@ class KinovaTeleoperation:
             success = True
 
         return success, message
+
+    def __calculate_compesation_handler(self, request):
+        """
+        
+        """
+
+        self.__input_pose['position'][0] = request.input_pose.position.x
+        self.__input_pose['position'][1] = request.input_pose.position.y
+        self.__input_pose['position'][2] = request.input_pose.position.z
+
+        self.__input_pose['orientation'][0] = request.input_pose.orientation.w
+        self.__input_pose['orientation'][1] = request.input_pose.orientation.x
+        self.__input_pose['orientation'][2] = request.input_pose.orientation.y
+        self.__input_pose['orientation'][3] = request.input_pose.orientation.z
+
+        self.__calculate_compensation()
+
+        return []
 
     # # Topic callbacks:
     def __input_pose_callback(self, message):

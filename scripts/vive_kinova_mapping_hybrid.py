@@ -15,14 +15,20 @@ import rospy
 import numpy as np
 import transformations
 import copy
-
+import math
 from std_msgs.msg import (Bool)
-from std_srvs.srv import (SetBool)
+from std_srvs.srv import (
+    SetBool,
+)
 from geometry_msgs.msg import (Pose)
 
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
 from tf.transformations import quaternion_from_euler, quaternion_multiply
+
+from std_msgs.msg import Float64MultiArray
+
+from kinova_positional_control.srv import (CalculateCompensation)
 
 
 class ViveMapping:
@@ -53,13 +59,15 @@ class ViveMapping:
         self.HEADSET_MODE = headset_mode
 
         self.__control_mode = 'full'
-        self.__mode_state_machine_state = 0
+        self.__mode_state_machine_state = 2
 
         self.__scaling_motion = "regular"
         self.__scaling_state_machine_state = 0
         self.scaled_value = 1
+        self.last_scaled_value = 1
         self.scale_flag = 0
         self.unscale_flag = 0
+        self.scale_change = 0
 
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
@@ -108,6 +116,10 @@ class ViveMapping:
             f'/{self.ROBOT_NAME}/teleoperation/enable_tracking',
             SetBool,
         )
+        self.__teleoperation_calculate_compesation = rospy.ServiceProxy(
+            f'/{self.ROBOT_NAME}/teleoperation/calculate_compesation',
+            CalculateCompensation,
+        )
 
         # # Topic publisher:
         self.__node_is_initialized = rospy.Publisher(
@@ -146,6 +158,11 @@ class ViveMapping:
 
         rospy.Subscriber(
             '/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_b
+        )
+
+        rospy.Subscriber(
+            '/scaling_values', Float64MultiArray,
+            self.callback_scaling_parameters
         )
 
     # # Dependency status callbacks:
@@ -191,7 +208,20 @@ class ViveMapping:
         if self.gripper_val == 1:  # Trigger button to hold the gripper state
             self.trigger_press = True
 
+    def callback_scaling_parameters(self, scaling_array):
+
+        self.last_scaled_value = self.scaled_value
+        self.scaled_value = scaling_array.data[0]
+
     # # Private methods:
+
+    def __scaling_value_state_machine(self):
+        """
+        
+        """
+        if self.last_scaled_value != self.scaled_value and self.scale_change == 0:
+
+            self.scale_change = 1
 
     def __scaling_state_machine(self, button):
         """
@@ -203,9 +233,7 @@ class ViveMapping:
 
             self.__scaling_state_machine_state = 1
             self.__scaling_motion = 'slow'
-            print("______slow")
             self.scale_flag = 1
-            self.__teleoperation_enable_tracking(False)
 
         # State 1: Button was released.
         elif (self.__scaling_state_machine_state == 1 and not button):
@@ -217,9 +245,7 @@ class ViveMapping:
 
             self.__scaling_state_machine_state = 3
             self.__scaling_motion = 'regular'
-            print("___regular")
             self.unscale_flag = 1
-            self.__teleoperation_enable_tracking(False)
 
         elif (self.__scaling_state_machine_state == 3 and not button):
 
@@ -361,19 +387,24 @@ class ViveMapping:
             pose_message.orientation.x = self.__input_pose['orientation'][1]
             pose_message.orientation.y = self.__input_pose['orientation'][2]
             pose_message.orientation.z = self.__input_pose['orientation'][3]
-
-            self.__teleoperation_pose.publish(pose_message)
-
             # flag: activate tracking after triggering compensation for scaling
             if self.unscale_flag == 1:
                 self.unscale_flag = 0
-                self.__teleoperation_enable_tracking(True)
+                # self.__teleoperation_enable_tracking(True)
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            self.__teleoperation_pose.publish(pose_message)
 
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
         elif self.__control_mode == 'position':
             angle_z = -self.vive_axes[0] / 7500
             angle_y = self.vive_axes[1] / 7500
+
+            if math.fabs(self.vive_axes[0]) >= 0.85:
+                angle_y = 0
+            elif math.fabs(self.vive_axes[1]) >= 0.85:
+                angle_z = 0
 
             euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
 
@@ -392,12 +423,12 @@ class ViveMapping:
             pose_message.orientation.y = combined_quaternion[2]
             pose_message.orientation.z = combined_quaternion[3]
 
-            self.__teleoperation_pose.publish(pose_message)
-
             # flag: activate tracking after triggering compensation for scaling
             if self.unscale_flag == 1:
                 self.unscale_flag = 0
-                self.__teleoperation_enable_tracking(True)
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            self.__teleoperation_pose.publish(pose_message)
 
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
@@ -435,24 +466,31 @@ class ViveMapping:
 
         if self.__control_mode == 'full':
             pose_message = Pose()
-            pose_message.position.x = self.__input_pose['position'][0] / 2
-            pose_message.position.y = self.__input_pose['position'][1] / 2
-            pose_message.position.z = self.__input_pose['position'][2] / 2
+            pose_message.position.x = self.__input_pose['position'][
+                0] * self.scaled_value
+            pose_message.position.y = self.__input_pose['position'][
+                1] * self.scaled_value
+            pose_message.position.z = self.__input_pose['position'][
+                2] * self.scaled_value
 
             pose_message.orientation.w = self.__input_pose['orientation'][0]
             pose_message.orientation.x = self.__input_pose['orientation'][1]
             pose_message.orientation.y = self.__input_pose['orientation'][2]
             pose_message.orientation.z = self.__input_pose['orientation'][3]
 
-            self.__teleoperation_pose.publish(pose_message)
-
-            self.__last_input_pose = copy.deepcopy(self.__input_pose)
-
             # flag: activate tracking after triggering compensation for scaling
             if self.scale_flag == 1:
 
                 self.scale_flag = 0
-                self.__teleoperation_enable_tracking(True)
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            if self.scale_change == 1:
+                self.scale_change = 0
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            self.__teleoperation_pose.publish(pose_message)
+
+            self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
         elif self.__control_mode == 'position':
             angle_z = -self.vive_axes[0] / 7500
@@ -466,22 +504,29 @@ class ViveMapping:
             )
 
             pose_message = Pose()
-            pose_message.position.x = self.__input_pose['position'][0] / 2
-            pose_message.position.y = self.__input_pose['position'][1] / 2
-            pose_message.position.z = self.__input_pose['position'][2] / 2
+            pose_message.position.x = self.__input_pose['position'][
+                0] * self.scaled_value
+            pose_message.position.y = self.__input_pose['position'][
+                1] * self.scaled_value
+            pose_message.position.z = self.__input_pose['position'][
+                2] * self.scaled_value
 
             pose_message.orientation.w = combined_quaternion[0]
             pose_message.orientation.x = combined_quaternion[1]
             pose_message.orientation.y = combined_quaternion[2]
             pose_message.orientation.z = combined_quaternion[3]
 
-            self.__teleoperation_pose.publish(pose_message)
-
             # flag: activate tracking after triggering compensation for scaling
             if self.scale_flag == 1:
 
                 self.scale_flag = 0
-                self.__teleoperation_enable_tracking(True)
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            if self.scale_change == 1:
+                self.scale_change = 0
+                self.__teleoperation_calculate_compesation(pose_message)
+
+            self.__teleoperation_pose.publish(pose_message)
 
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
@@ -502,6 +547,7 @@ class ViveMapping:
 
         self.__mode_state_machine(self.vive_buttons[0])
         self.__scaling_state_machine(self.vive_buttons[3])
+        self.__scaling_value_state_machine()
 
         if self.__scaling_motion == 'regular':
             self.__publish_teleoperation_pose_regular()
