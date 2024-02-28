@@ -60,6 +60,7 @@ class ViveMapping:
 
         self.__control_mode = 'full'
         self.__mode_state_machine_state = 2
+        self.__tracking_state_machine_state = 0
 
         self.__scaling_motion = "regular"
         self.__scaling_state_machine_state = 0
@@ -68,6 +69,9 @@ class ViveMapping:
         self.scale_flag = 0
         self.unscale_flag = 0
         self.scale_change = 0
+        self.right_scaling_active = 0
+        self.right_orientation_active = 0
+        self.right_disengage = 0
 
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
@@ -136,6 +140,12 @@ class ViveMapping:
         self.__teleoperation_mode_button = rospy.Publisher(
             f'/{self.ROBOT_NAME}/teleoperation/mode_button',
             Bool,
+            queue_size=1,
+        )
+
+        self.__right_parameter_publisher = rospy.Publisher(
+            '/right/ui_parameters',
+            Float64MultiArray,
             queue_size=1,
         )
 
@@ -212,6 +222,33 @@ class ViveMapping:
 
             self.scale_change = 1
 
+    def __tracking_state_machine(self, button):
+        """
+        
+        """
+
+        # State 0: Grip button was pressed.
+        if (self.__tracking_state_machine_state == 0 and button):
+
+            self.right_disengage = 1
+            self.__tracking_state_machine_state = 1
+
+        # State 1: Grip button was released. Tracking is activated.
+        elif (self.__tracking_state_machine_state == 1 and not button):
+
+            self.__tracking_state_machine_state = 2
+
+        # State 2: Grip button was pressed. Tracking is deactivated.
+        elif (self.__tracking_state_machine_state == 2 and button):
+
+            self.__tracking_state_machine_state = 3
+            self.right_disengage = 0
+
+        # State 3: Grip button was released.
+        elif (self.__tracking_state_machine_state == 3 and not button):
+
+            self.__tracking_state_machine_state = 0
+
     def __scaling_state_machine(self, button):
         """
         Used to track if continous or discrete orientation control is desired
@@ -223,6 +260,7 @@ class ViveMapping:
             self.__scaling_state_machine_state = 1
             self.__scaling_motion = 'slow'
             self.scale_flag = 1
+            self.right_scaling_active = 1
 
         # State 1: Button was released.
         elif (self.__scaling_state_machine_state == 1 and not button):
@@ -235,6 +273,7 @@ class ViveMapping:
             self.__scaling_state_machine_state = 3
             self.__scaling_motion = 'regular'
             self.unscale_flag = 1
+            self.right_scaling_active = 0
 
         elif (self.__scaling_state_machine_state == 3 and not button):
 
@@ -250,6 +289,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 1
             self.__control_mode = 'full'
+            self.right_orientation_active = 0
 
         # State 1: Button was released.
         elif (self.__mode_state_machine_state == 1 and not button):
@@ -261,6 +301,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 3
             self.__control_mode = 'position'
+            self.right_orientation_active = 1
 
         # State 3: Button was released.
         elif (self.__mode_state_machine_state == 3 and not button):
@@ -537,6 +578,7 @@ class ViveMapping:
         self.__mode_state_machine(self.vive_buttons[0])
         self.__scaling_state_machine(self.vive_buttons[3])
         self.__scaling_value_state_machine()
+        self.__tracking_state_machine(self.vive_buttons[2])
 
         if self.__scaling_motion == 'regular':
             self.__publish_teleoperation_pose_regular()
@@ -546,6 +588,15 @@ class ViveMapping:
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])
         self.__teleoperation_gripper_button.publish(self.trigger_press)
         self.__teleoperation_mode_button.publish(self.vive_buttons[0])
+        right_data = Float64MultiArray()
+        right_data.data = np.asarray(
+            [
+                self.right_scaling_active,
+                self.right_disengage,
+                self.right_orientation_active,
+            ]
+        )
+        self.__right_parameter_publisher.publish(right_data)
 
     def node_shutdown(self):
         """
