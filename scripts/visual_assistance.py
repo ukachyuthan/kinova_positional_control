@@ -20,6 +20,9 @@ import cv2.aruco as aruco
 from std_msgs.msg import String, Float64, Float64MultiArray
 from geometry_msgs.msg import TransformStamped, Pose
 import copy
+import socket
+import pickle
+import os
 
 # # Third party libraries:
 
@@ -50,6 +53,14 @@ class VisualAssistance:
         self.image_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         self.key = 0
         self.node_rate = rospy.Rate(1000)
+        # self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self.server_socket.bind(('130.215.181.94', 2332))
+        # self.server_socket.listen(5)
+
+        self.out_send = cv2.VideoWriter(
+            'appsrc ! videoconvert ! video/x-raw,format=YUY2 ! jpegenc ! rtpjpegpay ! udpsink host=130.215.181.94 port=2332 sync=false',
+            cv2.CAP_GSTREAMER, 0, 25, (640, 480)
+        )
 
         # left parameters:
         self.left_scaling = 0
@@ -176,8 +187,6 @@ class VisualAssistance:
             "/home/rbemotion/Downloads/robot_gray.jpg", cv2.IMREAD_UNCHANGED
         )
 
-        print(robot_color.shape)
-
         mirrored_image_color = cv2.flip(robot_color, 1)
         mirrored_image_gray = cv2.flip(robot_gray, 1)
 
@@ -289,7 +298,10 @@ class VisualAssistance:
             'Viewpoint', cv2.WINDOW_GUI_NORMAL
         )  # Create named window
         cv2.resizeWindow('Viewpoint', 1280, 960)  # Resize window
-        cv2.imshow('Viewpoint', output_frame)
+
+        output_frame_resized = cv2.resize(output_frame, (640, 480))
+        cv2.imshow('Viewpoint', output_frame_resized)
+        self.out_send.write(output_frame_resized)
 
         self.key = cv2.waitKey(1)
 
@@ -303,6 +315,9 @@ class VisualAssistance:
             if self.key == 113:
 
                 break
+
+        self.out_send.release()
+        cv2.destroyAllWindows()
 
 
 def main():
