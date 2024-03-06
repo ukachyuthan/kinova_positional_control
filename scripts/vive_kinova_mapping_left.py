@@ -24,7 +24,8 @@ from geometry_msgs.msg import (Pose)
 
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
-from tf.transformations import quaternion_from_euler, quaternion_multiply
+from tf.transformations import quaternion_from_euler, quaternion_multiply, \
+euler_from_quaternion
 
 from std_msgs.msg import Float64MultiArray
 
@@ -503,10 +504,25 @@ class ViveMapping:
             pose_message.position.z = self.__input_pose['position'][
                 2] * self.scaled_value
 
-            pose_message.orientation.w = self.__input_pose['orientation'][0]
-            pose_message.orientation.x = self.__input_pose['orientation'][1]
-            pose_message.orientation.y = self.__input_pose['orientation'][2]
-            pose_message.orientation.z = self.__input_pose['orientation'][3]
+            eulers = euler_from_quaternion(
+                [
+                    self.__input_pose['orientation'][1],
+                    self.__input_pose['orientation'][2],
+                    self.__input_pose['orientation'][3],
+                    self.__input_pose['orientation'][0]
+                ]
+            )
+
+            euler_half = [angle * self.scaled_value for angle in eulers]
+
+            quaternion_scaled = quaternion_from_euler(
+                euler_half[0], euler_half[1], euler_half[2]
+            )
+
+            pose_message.orientation.w = quaternion_scaled[3]
+            pose_message.orientation.x = quaternion_scaled[0]
+            pose_message.orientation.y = quaternion_scaled[1]
+            pose_message.orientation.z = quaternion_scaled[2]
 
             # flag: activate tracking after triggering compensation for scaling
             if self.scale_flag == 1:
@@ -514,13 +530,24 @@ class ViveMapping:
                 self.scale_flag = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
-            if self.scale_change == 1:
+            elif self.scale_change == 1:
+
                 self.scale_change = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
             self.__teleoperation_pose.publish(pose_message)
 
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
+            self.__last_input_pose['orientation'] = copy.deepcopy(
+                np.asarray(
+                    [
+                        quaternion_scaled[3],
+                        quaternion_scaled[0],
+                        quaternion_scaled[1],
+                        quaternion_scaled[2],
+                    ]
+                )
+            )
 
         elif self.__control_mode == 'position':
             angle_z = -self.vive_axes[0] / 7500
