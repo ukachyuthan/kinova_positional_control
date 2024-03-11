@@ -15,6 +15,7 @@ import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
+import cv2.aruco as aruco
 import numpy as np
 import cv2.aruco as aruco
 from std_msgs.msg import String, Float64, Float64MultiArray
@@ -168,9 +169,48 @@ class VisualAssistance:
             2,
         )
 
+    def place_circle(self, corners, ids, id, color):
+
+        value = np.where(ids == id)
+
+        if value[0].size != 0:
+
+            corner = corners[value[0][0]]
+            mid_x_ar = int((corner[0][0][0] + corner[0][1][0]) / 2)
+            mid_y_ar = int((corner[0][0][1] + corner[0][2][1]) / 2)
+
+            cv2.circle(
+                self.secondary_frame,
+                (int(mid_x_ar), int(mid_y_ar)),
+                20,
+                color,
+                cv2.FILLED,
+            )
+
+    def detect_markers(self):
+
+        try:
+            aruco_dict = aruco.getPredefinedDictionary(
+                aruco.DICT_ARUCO_ORIGINAL
+            )
+            arucoParameters = aruco.DetectorParameters()
+            detector = aruco.ArucoDetector(aruco_dict, arucoParameters)
+            corners, ids, rejectedImgPoints = detector.detectMarkers(
+                self.secondary_frame
+            )
+
+            self.place_circle(corners, ids, 203, (0, 255, 0))
+            self.place_circle(corners, ids, 301, (0, 0, 255))
+            self.place_circle(corners, ids, 305, (255, 0, 0))
+
+        except:
+            print(1)
+            pass
+
     def image_gen(self):
 
         # Receiving and displaying the video frame
+        self.detect_markers()
         self.secondary_add()
 
         current_frame = copy.deepcopy(self.combined_frame)
