@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="secondary" default="false"/>
+
+    <group if="$(arg secondary)">
+        <!-- Launch the visual_assistance_secondary.py node -->
+        <node pkg="kinova_positional_control" type="visual_assistance_secondary.py" name="visual_assistance_node" output="screen"/>
+    </group>
+    
+    <group unless="$(arg secondary)">
+        <!-- Launch the visual_assistance.py node -->
+        <node pkg="kinova_positional_control" type="visual_assistance.py" name="visual_assistance_node" output="screen"/>
+    </group>
+
+</launch>
