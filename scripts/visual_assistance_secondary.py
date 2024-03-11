@@ -182,7 +182,7 @@ class VisualAssistance:
             cv2.circle(
                 self.secondary_frame,
                 (int(mid_x_ar), int(mid_y_ar)),
-                20,
+                50,
                 color,
                 cv2.FILLED,
             )
@@ -199,6 +199,7 @@ class VisualAssistance:
                 self.secondary_frame
             )
 
+            # TODO: Change ID Numbers to be consecutive (203, 204, 205)
             self.place_circle(corners, ids, 203, (0, 255, 0))
             self.place_circle(corners, ids, 301, (0, 0, 255))
             self.place_circle(corners, ids, 305, (255, 0, 0))
