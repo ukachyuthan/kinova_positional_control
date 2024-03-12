@@ -495,7 +495,7 @@ class ViveMapping:
                 )
             )
 
-                if self.__control_mode == 'full':
+        if self.__control_mode == 'full':
             pose_message = Pose()
             pose_message.position.x = self.__input_pose['position'][
                 0] * self.scaled_value

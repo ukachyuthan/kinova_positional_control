@@ -48,9 +48,6 @@ class scalingdeterminer:
         self.left_disengage = 0
         self.right_disengage = 0
 
-        # self.old_left_arm_position = np.asarray([0,0,0])
-        # self.old_right_arm_position = np.asarray([0,0,0])
-
         self.left_dwell = 0
         self.right_dwell = 0
 

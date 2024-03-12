@@ -183,19 +183,41 @@ class VisualAssistance:
             "/home/rbemotion/Downloads/robot_color.jpg", cv2.IMREAD_UNCHANGED
         )
 
-        robot_gray = cv2.imread(
-            "/home/rbemotion/Downloads/robot_gray.jpg", cv2.IMREAD_UNCHANGED
+        robot_gray_unavailable = cv2.imread(
+            "/home/rbemotion/Downloads/robot_gray_unavailable.jpg",
+            cv2.IMREAD_UNCHANGED
+        )
+
+        robot_gray_available = cv2.imread(
+            "/home/rbemotion/Downloads/robot_gray_available.jpg",
+            cv2.IMREAD_UNCHANGED
         )
 
         mirrored_image_color = cv2.flip(robot_color, 1)
-        mirrored_image_gray = cv2.flip(robot_gray, 1)
+        mirrored_image_gray_unavailable = cv2.flip(robot_gray_unavailable, 1)
+        mirrored_image_gray_available = cv2.flip(robot_gray_available, 1)
 
         robot_color_resized = cv2.resize(robot_color, (64, 64))
-        robot_gray_resized = cv2.resize(robot_gray, (64, 64))
-        mirrored_image_color_resized = cv2.resize(
-            mirrored_image_color, (64, 64)
+        robot_gray_unavailable_resized = cv2.resize(
+            robot_gray_unavailable,
+            (64, 64),
         )
-        mirrored_image_gray_resized = cv2.resize(mirrored_image_gray, (64, 64))
+        robot_gray_available_resized = cv2.resize(
+            robot_gray_available,
+            (64, 64),
+        )
+        mirrored_image_color_resized = cv2.resize(
+            mirrored_image_color,
+            (64, 64),
+        )
+        mirrored_image_gray_unavailable_resized = cv2.resize(
+            mirrored_image_gray_unavailable,
+            (64, 64),
+        )
+        mirrored_image_gray_available_resized = cv2.resize(
+            mirrored_image_gray_available,
+            (64, 64),
+        )
 
         # First square
         cv2.rectangle(
@@ -215,14 +237,24 @@ class VisualAssistance:
         if self.left_scaling == 1:
             display_image_left = copy.deepcopy(robot_color_resized)
 
+        elif self.left_scaling_avail == 1:
+            display_image_left = copy.deepcopy(robot_gray_available_resized)
+
         else:
-            display_image_left = copy.deepcopy(robot_gray_resized)
+            display_image_left = copy.deepcopy(robot_gray_unavailable_resized)
 
         if self.right_scaling == 1:
             display_image_right = copy.deepcopy(mirrored_image_color_resized)
 
+        elif self.right_scaling_avail == 1:
+            display_image_right = copy.deepcopy(
+                mirrored_image_gray_available_resized
+            )
+
         else:
-            display_image_right = copy.deepcopy(mirrored_image_gray_resized)
+            display_image_right = copy.deepcopy(
+                mirrored_image_gray_unavailable_resized
+            )
 
         sidebar[84:148, 5:69] = display_image_left
         sidebar[84:148, 81:145] = display_image_right
@@ -247,14 +279,24 @@ class VisualAssistance:
         if self.left_disengage == 1:
             display_image_left = copy.deepcopy(robot_color_resized)
 
+        elif self.left_disengage_avail == 1:
+            display_image_left = copy.deepcopy(robot_gray_available_resized)
+
         else:
-            display_image_left = copy.deepcopy(robot_gray_resized)
+            display_image_left = copy.deepcopy(robot_gray_unavailable_resized)
 
         if self.right_disengage == 1:
             display_image_right = copy.deepcopy(mirrored_image_color_resized)
 
+        elif self.right_disengage_avail == 1:
+            display_image_right = copy.deepcopy(
+                mirrored_image_gray_available_resized
+            )
+
         else:
-            display_image_right = copy.deepcopy(mirrored_image_gray_resized)
+            display_image_right = copy.deepcopy(
+                mirrored_image_gray_unavailable_resized
+            )
 
         sidebar[248:312, 5:69] = display_image_left
         sidebar[248:312, 81:145] = display_image_right
@@ -280,13 +322,15 @@ class VisualAssistance:
             display_image_left = copy.deepcopy(robot_color_resized)
 
         else:
-            display_image_left = copy.deepcopy(robot_gray_resized)
+            display_image_left = copy.deepcopy(robot_gray_available_resized)
 
         if self.right_orientation == 1:
             display_image_right = copy.deepcopy(mirrored_image_color_resized)
 
         else:
-            display_image_right = copy.deepcopy(mirrored_image_gray_resized)
+            display_image_right = copy.deepcopy(
+                mirrored_image_gray_available_resized
+            )
 
         sidebar[398:462, 5:69] = display_image_left
         sidebar[398:462, 81:145] = display_image_right
