@@ -429,15 +429,15 @@ class ViveMapping:
             self.__last_input_pose = copy.deepcopy(self.__input_pose)
 
         elif self.__control_mode == 'position':
-            angle_z = -self.vive_axes[0] / 7500
-            angle_y = self.vive_axes[1] / 7500
+            angle_z = -self.vive_axes[0] / 5000
+            angle_y = self.vive_axes[1] / 5000
 
             if math.fabs(self.vive_axes[0]) >= 0.85:
                 angle_y = 0
             elif math.fabs(self.vive_axes[1]) >= 0.85:
                 angle_z = 0
 
-            euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
+            euler_quaternion = quaternion_from_euler(angle_y, 0, angle_z)
 
             combined_quaternion = quaternion_multiply(
                 self.__last_input_pose['orientation'],
@@ -550,10 +550,10 @@ class ViveMapping:
             )
 
         elif self.__control_mode == 'position':
-            angle_z = -self.vive_axes[0] / 7500
-            angle_y = self.vive_axes[1] / 7500
+            angle_z = -self.vive_axes[0] / 5000
+            angle_y = self.vive_axes[1] / 5000
 
-            euler_quaternion = quaternion_from_euler(angle_z, angle_y, 0)
+            euler_quaternion = quaternion_from_euler(angle_y, 0, angle_z)
 
             combined_quaternion = quaternion_multiply(
                 self.__last_input_pose['orientation'],

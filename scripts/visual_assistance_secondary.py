@@ -159,12 +159,12 @@ class VisualAssistance:
 
         self.combined_frame = copy.deepcopy(self.image_frame)
 
-        self.combined_frame[2:152, 2:202] = resized_frame
+        self.combined_frame[328:478, 438:638] = resized_frame
 
         cv2.rectangle(
             self.combined_frame,
-            (2, 152),
-            (202, 2),
+            (438, 478),
+            (638, 328),
             (255, 255, 255),
             2,
         )
@@ -201,8 +201,8 @@ class VisualAssistance:
 
             # TODO: Change ID Numbers to be consecutive (203, 204, 205)
             self.place_circle(corners, ids, 203, (0, 255, 0))
-            self.place_circle(corners, ids, 301, (0, 0, 255))
-            self.place_circle(corners, ids, 305, (255, 0, 0))
+            self.place_circle(corners, ids, 204, (0, 0, 255))
+            self.place_circle(corners, ids, 205, (0, 255, 255))
 
         except:
             print(1)
