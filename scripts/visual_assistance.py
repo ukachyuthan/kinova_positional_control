@@ -68,6 +68,7 @@ class VisualAssistance:
         self.left_orientation = 0
         self.left_scaling_avail = 0
         self.left_disengage_avail = 0
+        self.left_emergency = 0
 
         # right parameters:
         self.right_scaling = 0
@@ -75,6 +76,7 @@ class VisualAssistance:
         self.right_orientation = 0
         self.right_scaling_avail = 0
         self.right_disengage_avail = 0
+        self.right_emergency = 0
 
         # # Public variables:
         self.public_variable = 1
@@ -99,6 +101,11 @@ class VisualAssistance:
             Float64MultiArray,
             self.callback_left_parameters,
         )
+        rospy.Subscriber(
+            '/left/emergency_topic',
+            Float64,
+            self.callback_emergency_left,
+        )
 
         # # Right arm subscriber:
         rospy.Subscriber(
@@ -106,8 +113,21 @@ class VisualAssistance:
             Float64MultiArray,
             self.callback_right_parameters,
         )
+        rospy.Subscriber(
+            '/right/emergency_topic',
+            Float64,
+            self.callback_emergency_right,
+        )
 
     # # Topic callbacks:
+    def callback_emergency_right(self, message):
+
+        self.right_emergency = message.data
+    
+    def callback_emergency_left(self, message):
+
+        self.left_emergency = message.data
+
     def callback_scaling_parameters(self, message):
 
         self.left_scaling_avail = message.data[0]
@@ -276,7 +296,7 @@ class VisualAssistance:
             disengage_text_color, 3, cv2.LINE_AA
         )
 
-        if self.left_disengage == 1:
+        if self.left_disengage == 1 or self.left_emergency == 1:
             display_image_left = copy.deepcopy(robot_color_resized)
 
         elif self.left_disengage_avail == 1:
@@ -285,7 +305,7 @@ class VisualAssistance:
         else:
             display_image_left = copy.deepcopy(robot_gray_unavailable_resized)
 
-        if self.right_disengage == 1:
+        if self.right_disengage == 1 or self.right_emergency == 1:
             display_image_right = copy.deepcopy(mirrored_image_color_resized)
 
         elif self.right_disengage_avail == 1:
