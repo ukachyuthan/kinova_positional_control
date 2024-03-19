@@ -20,7 +20,7 @@ from std_msgs.msg import (Bool)
 from std_srvs.srv import (SetBool)
 from geometry_msgs.msg import (Pose)
 
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64
 
 # from kortex_driver.srv import (Stop)
 from kinova_positional_control.srv import (
@@ -180,7 +180,7 @@ class KinovaTeleoperation:
         )
         self.__emergency_publish = rospy.Publisher(
             f'/{self.ROBOT_NAME}/emergency_topic',
-            Float64MultiArray,
+            Float64,
             queue_size=1,
         )
 
