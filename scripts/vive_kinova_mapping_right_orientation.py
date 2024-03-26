@@ -158,21 +158,21 @@ class ViveMapping:
             queue_size=1,
         )
 
-        self.__left_parameter_publisher = rospy.Publisher(
-            '/left/ui_parameters',
+        self.__right_parameter_publisher = rospy.Publisher(
+            '/right/ui_parameters',
             Float64MultiArray,
             queue_size=1,
         )
 
         # # Topic subscriber:
         rospy.Subscriber(
-            '/Left_Hand',
+            '/Right_Hand',
             TransformStamped,
             self.__input_pose_callback,
         )
 
         rospy.Subscriber(
-            '/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_b
+            '/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_b
         )
 
         rospy.Subscriber(
@@ -257,7 +257,7 @@ class ViveMapping:
     def callback_scaling_parameters(self, scaling_array):
 
         self.last_scaled_value = self.scaled_value
-        self.scaled_value = scaling_array.data[0]
+        self.scaled_value = scaling_array.data[1]
 
     # # Private methods:
     def __speedchecker_position(self, position_list):
@@ -332,7 +332,7 @@ class ViveMapping:
         # State 0: Grip button was pressed.
         if (self.__tracking_state_machine_state == 0 and button):
 
-            self.left_disengage = 1
+            self.right_disengage = 1
             self.__tracking_state_machine_state = 1
 
         # State 1: Grip button was released. Tracking is activated.
@@ -344,7 +344,7 @@ class ViveMapping:
         elif (self.__tracking_state_machine_state == 2 and button):
 
             self.__tracking_state_machine_state = 3
-            self.left_disengage = 0
+            self.right_disengage = 0
 
         # State 3: Grip button was released.
         elif (self.__tracking_state_machine_state == 3 and not button):
@@ -362,7 +362,7 @@ class ViveMapping:
             self.__scaling_state_machine_state = 1
             self.__scaling_motion = 'slow'
             self.scale_flag = 1
-            self.left_scaling_active = 1
+            self.right_scaling_active = 1
 
         # State 1: Button was released.
         elif (self.__scaling_state_machine_state == 1 and not button):
@@ -375,7 +375,7 @@ class ViveMapping:
             self.__scaling_state_machine_state = 3
             self.__scaling_motion = 'regular'
             self.unscale_flag = 1
-            self.left_scaling_active = 0
+            self.right_scaling_active = 0
 
         elif (self.__scaling_state_machine_state == 3 and not button):
 
@@ -391,7 +391,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 1
             self.__control_mode = 'full'
-            self.left_orientation_active = 0
+            self.right_orientation_active = 0
 
         # State 1: Button was released.
         elif (self.__mode_state_machine_state == 1 and not button):
@@ -403,7 +403,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 3
             self.__control_mode = 'position'
-            self.left_orientation_active = 1
+            self.right_orientation_active = 1
 
         # State 3: Button was released.
         elif (self.__mode_state_machine_state == 3 and not button):
@@ -930,15 +930,15 @@ class ViveMapping:
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])
         self.__teleoperation_gripper_button.publish(self.trigger_press)
         self.__teleoperation_mode_button.publish(self.vive_buttons[0])
-        left_data = Float64MultiArray()
-        left_data.data = np.asarray(
+        right_data = Float64MultiArray()
+        right_data.data = np.asarray(
             [
-                self.left_scaling_active,
-                self.left_disengage,
-                self.left_orientation_active,
+                self.right_scaling_active,
+                self.right_disengage,
+                self.right_orientation_active,
             ]
         )
-        self.__left_parameter_publisher.publish(left_data)
+        self.__right_parameter_publisher.publish(right_data)
 
     def node_shutdown(self):
         """
@@ -960,7 +960,7 @@ def main():
     """
 
     rospy.init_node(
-        'vive_mapping_left',
+        'vive_mapping_right',
         log_level=rospy.INFO,  # TODO: Make this a launch file parameter.
     )
 
