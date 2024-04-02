@@ -27,7 +27,7 @@ from geometry_msgs.msg import TransformStamped, Pose
 from tf.transformations import quaternion_from_euler, quaternion_multiply, \
 euler_from_quaternion
 
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, Float64
 
 from kinova_positional_control.srv import (CalculateCompensation)
 
@@ -77,6 +77,8 @@ class ViveMapping:
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
+
+        self.emergency_stop = 0
 
         self.trigger_press = False
 
@@ -166,6 +168,10 @@ class ViveMapping:
             self.callback_scaling_parameters
         )
 
+        rospy.Subscriber(
+            '/right/emergency_topic', Float64, self.callback_emergency
+        )
+
     # # Dependency status callbacks:
     def __teleoperation_callback(self, message):
         """Monitors teleoperation is_initialized topic.
@@ -177,6 +183,10 @@ class ViveMapping:
     # # Service handlers:
 
     # # Topic callbacks:
+    def callback_emergency(self, msg):
+
+        self.emergency_stop = msg.data
+
     def __input_pose_callback(self, msg):
         """
 
@@ -243,7 +253,11 @@ class ViveMapping:
         elif (self.__tracking_state_machine_state == 2 and button):
 
             self.__tracking_state_machine_state = 3
-            self.right_disengage = 0
+            if self.emergency_stop == 0:
+                self.right_disengage = 0
+            else:
+                self.right_disengage = 1
+                self.__tracking_state_machine_state = 2
 
         # State 3: Grip button was released.
         elif (self.__tracking_state_machine_state == 3 and not button):

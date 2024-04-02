@@ -20,6 +20,8 @@ from std_msgs.msg import (Bool)
 from std_srvs.srv import (SetBool)
 from geometry_msgs.msg import (Pose)
 
+from std_msgs.msg import Float64
+
 # from kortex_driver.srv import (Stop)
 from kinova_positional_control.srv import (
     GripperForceGrasping,
@@ -74,6 +76,8 @@ class KinovaTeleoperation:
         self.__gripper_state_machine_state = 0
         self.__mode_state_machine_state = 0
         self.__control_mode = 'full'
+
+        self.emergency_stop = 3
 
         self.__pose_tracking = False
 
@@ -172,6 +176,11 @@ class KinovaTeleoperation:
         self.__kinova_pose = rospy.Publisher(
             f'/{self.ROBOT_NAME}/positional_control/input_pose',
             Pose,
+            queue_size=1,
+        )
+        self.__emergency_publish = rospy.Publisher(
+            f'/{self.ROBOT_NAME}/emergency_topic',
+            Float64,
             queue_size=1,
         )
 
@@ -479,6 +488,7 @@ class KinovaTeleoperation:
                 self.__tracking_state_machine_state = 2
                 self.__calculate_compensation()
                 self.__pose_tracking = True
+                self.emergency_stop = 0
 
             elif self.TRACKING_MODE == 'hold':
                 self.__tracking_state_machine_state = 0
@@ -605,6 +615,7 @@ class KinovaTeleoperation:
 
         self.__tracking_state_machine_state = 0
         self.__pose_tracking = False
+        self.emergency_stop = 1
 
     def __publish_kinova_pose(self):
         """
@@ -619,8 +630,6 @@ class KinovaTeleoperation:
             and self.__input_pose['position'][2] == 0 and self.__pose_tracking
         ):
             self.__stop_tracking()
-
-            #TODO: Add publisher here to notify UI of pause
 
             rospy.logerr(
                 (
@@ -702,8 +711,6 @@ class KinovaTeleoperation:
         if (input_position_difference > self.MAXIMUM_INPUT_POSITION_CHANGE):
             self.__stop_tracking()
 
-            #TODO: Add publisher here to notify UI of pause
-
             rospy.logerr(
                 (
                     f'/{self.ROBOT_NAME}/teleoperation: '
@@ -743,8 +750,6 @@ class KinovaTeleoperation:
 
         if (input_angular_difference > self.MAXIMUM_INPUT_ORIENTATION_CHANGE):
             self.__stop_tracking()
-
-            #TODO: Add publisher here to notify UI of pause
 
             rospy.logerr(
                 (
@@ -786,6 +791,7 @@ class KinovaTeleoperation:
         self.__tracking_state_machine(self.__tracking_button)
         self.__gripper_state_machine(self.__gripper_button)
         self.__mode_state_machine(self.__mode_button)
+        self.__emergency_publish.publish(self.emergency_stop)
 
         if self.__pose_tracking:
             self.__publish_kinova_pose()
