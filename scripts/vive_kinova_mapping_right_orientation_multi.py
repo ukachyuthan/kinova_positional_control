@@ -92,6 +92,9 @@ class ViveMapping:
         self.pitch_positions = [0] * 10
         self.yaw_positions = [0] * 10
 
+        self.constraint_activate = 0
+        self.constraint_deactivate = 0
+
         self.__mode_switch = 0  # 0 = full, 1 = intent inference mode
 
         # # Private variables:
@@ -504,9 +507,11 @@ class ViveMapping:
 
         if orientation_fixture_condn or position_fixture_condn:
             self.__mode_switch = 1
+            self.constraint_activate = 1
 
         else:
             self.__mode_switch = 0
+            self.constraint_deactivate = 0
 
         corrected_input_pose = copy.deepcopy(self.__input_pose)
 
@@ -546,6 +551,11 @@ class ViveMapping:
             if self.unscale_flag == 1:
                 self.unscale_flag = 0
                 # self.__teleoperation_enable_tracking(True)
+                self.__teleoperation_calculate_compesation(pose_message)
+            
+            if self.constraint_deactivate == 1:
+
+                self.constraint_deactivate = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
             self.__teleoperation_pose.publish(pose_message)
@@ -629,6 +639,11 @@ class ViveMapping:
             # flag: activate tracking after triggering compensation for scaling
             if self.unscale_flag == 1:
                 self.unscale_flag = 0
+                self.__teleoperation_calculate_compesation(pose_message)
+            
+            if self.constraint_activate == 1:
+
+                self.constraint_activate = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
             self.__teleoperation_pose.publish(pose_message)
@@ -741,6 +756,11 @@ class ViveMapping:
             elif self.scale_change == 1:
 
                 self.scale_change = 0
+                self.__teleoperation_calculate_compesation(pose_message)
+            
+            if self.constraint_deactivate == 1:
+
+                self.constraint_deactivate = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
             self.__teleoperation_pose.publish(pose_message)
@@ -855,6 +875,11 @@ class ViveMapping:
             elif self.scale_change == 1:
 
                 self.scale_change = 0
+                self.__teleoperation_calculate_compesation(pose_message)
+            
+            if self.constraint_activate == 1:
+
+                self.constraint_activate = 0
                 self.__teleoperation_calculate_compesation(pose_message)
 
             self.__teleoperation_pose.publish(pose_message)
