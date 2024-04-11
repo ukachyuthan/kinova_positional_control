@@ -92,7 +92,7 @@ class scalingdeterminer:
             self.physical_workload_callback,
         )
 
-        self.scaling_pub = rospy.Publisher(
+        self.scaling_parameter = rospy.Publisher(
             '/scaling_values',
             Float64MultiArray,
             queue_size=10,
@@ -145,7 +145,7 @@ class scalingdeterminer:
         else:
             self.left_dwell = 0
 
-        self.left_arm_motion_physical = self.left_arm_physical
+        self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell
 
     def __commanded_pose_callback_right(self, msg):
         """
@@ -299,7 +299,7 @@ class scalingdeterminer:
 
         print(scaling_value_left, scaling_value_right)
 
-        self.scaling_pub.publish(array_data)
+        self.scaling_parameter.publish(array_data)
 
 
 def main():
@@ -313,6 +313,8 @@ def main():
     print('\nScaling tracker up.\n')
 
     class_obj = scalingdeterminer()
+
+    print(dir(class_obj))
 
     rate = rospy.Rate(10)
 

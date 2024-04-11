@@ -28,6 +28,11 @@ from kinova_positional_control.srv import (
     GripperPosition,
     CalculateCompensation,
 )
+from tf.transformations import quaternion_from_euler, quaternion_multiply, \
+euler_from_quaternion
+import math
+import time
+import copy
 
 
 class KinovaTeleoperation:
@@ -81,6 +86,8 @@ class KinovaTeleoperation:
 
         self.__pose_tracking = False
 
+        self.last_time = time.time()
+
         # If the pose_tracking and control_mode are controlled through a service
         # call. These conditions are tracked to prevent manual switch with
         # buttons while in automatic mode.
@@ -91,6 +98,11 @@ class KinovaTeleoperation:
         # Last commanded Relaxed IK pose is required to compensate controller
         # input.
         self.last_relaxed_ik_pose = {
+            'position': np.array([0.0, 0.0, 0.0]),
+            'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
+        }
+
+        self.last_relaxed_ik_pose_test = {
             'position': np.array([0.0, 0.0, 0.0]),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0]),
         }
@@ -624,6 +636,7 @@ class KinovaTeleoperation:
 
         # Protection against 0, 0, 0 controller input values.
         # Controller loses connection, goes into a sleep mode etc.
+
         if (
             self.__input_pose['position'][0] == 0
             and self.__input_pose['position'][1] == 0
@@ -751,6 +764,37 @@ class KinovaTeleoperation:
         if (input_angular_difference > self.MAXIMUM_INPUT_ORIENTATION_CHANGE):
             self.__stop_tracking()
 
+            r, p, y = euler_from_quaternion(
+                [
+                    self.last_relaxed_ik_pose['orientation'][1],
+                    self.last_relaxed_ik_pose['orientation'][2],
+                    self.last_relaxed_ik_pose['orientation'][3],
+                    self.last_relaxed_ik_pose['orientation'][0],
+                ]
+            )
+            l_r, l_p, l_y = euler_from_quaternion(
+                [
+                    compensated_input_pose['orientation'][1],
+                    compensated_input_pose['orientation'][2],
+                    compensated_input_pose['orientation'][3],
+                    compensated_input_pose['orientation'][0],
+                ]
+            )
+
+            print(
+                "last ik pose",
+                math.degrees(r),
+                math.degrees(p),
+                math.degrees(y),
+            )
+
+            print(
+                "current ik pose",
+                math.degrees(l_r),
+                math.degrees(l_p),
+                math.degrees(l_y),
+            )
+
             rospy.logerr(
                 (
                     f'/{self.ROBOT_NAME}/teleoperation: '
@@ -776,6 +820,62 @@ class KinovaTeleoperation:
         pose_message.orientation.z = compensated_input_pose['orientation'][3]
 
         self.__kinova_pose.publish(pose_message)
+
+        curr_time = time.time()
+
+        _input_position_difference = np.linalg.norm(
+            compensated_input_pose['position']
+            - self.last_relaxed_ik_pose_test['position']
+        )
+
+        _input_orientation_missalignment = transformations.quaternion_multiply(
+            transformations.quaternion_inverse(
+                compensated_input_pose['orientation'],
+            ),
+            self.last_relaxed_ik_pose_test['orientation'],
+        )
+
+        _input_angular_difference = round(
+            np.rad2deg(
+                2 * np.arctan2(
+                    np.linalg.norm(_input_orientation_missalignment[1:4]),
+                    _input_orientation_missalignment[0],
+                )
+            ),
+            2,
+        )
+
+        if curr_time - self.last_time > 1:
+
+            # rospy.logerr(
+            #     (
+            #         f'/{self.ROBOT_NAME}/teleoperation: '
+            #         f'\nChange in input POSITION exceeded maximum allowed value! '
+            #         f'\n- Current input: {compensated_input_pose["position"]}'
+            #         f'\n- Previous input: {self.last_relaxed_ik_pose["position"]}'
+            #         f'\n- Difference (absolute): {_input_position_difference}'
+            #         f'\n- Allowed difference threshold: {np.round(self.MAXIMUM_INPUT_POSITION_CHANGE, 3)}'
+            #         '\nStopped input tracking.\n'
+            #     ),
+            # )
+
+            rospy.logerr(
+                (
+                    f'/{self.ROBOT_NAME}/teleoperation: '
+                    f'\nChange in input ORIENTATION exceeded maximum allowed value! '
+                    f'\n- Current input: {np.round(compensated_input_pose["orientation"], 3)}'
+                    f'\n- Previous input: {np.round(self.last_relaxed_ik_pose["orientation"], 3)}'
+                    f'\n- Difference (absolute): {np.round(_input_angular_difference, 3)}'
+                    f'\n- Allowed difference threshold: {np.round(math.degrees(self.MAXIMUM_INPUT_ORIENTATION_CHANGE), 3)}'
+                    '\nStopped input tracking.\n'
+                ),
+            )
+
+            self.last_relaxed_ik_pose_test = copy.deepcopy(
+                self.last_relaxed_ik_pose
+            )
+
+            self.last_time = curr_time
 
     # # Public methods:
     def main_loop(self):
