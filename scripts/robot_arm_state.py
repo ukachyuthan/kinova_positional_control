@@ -18,6 +18,8 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
 
 from std_msgs.msg import Float64MultiArray
+import copy
+import time
 
 
 class scalingdeterminer:
@@ -50,6 +52,14 @@ class scalingdeterminer:
 
         self.left_dwell = 0
         self.right_dwell = 0
+        self.left_first = 0
+        self.right_first = 0
+
+        self.left_start_stationary = 0
+        self.right_start_stationary = 0
+
+        self.left_timer = time.time()
+        self.right_timer = time.time()
 
         self.last_left_arm_pose = {
             'position': np.array([0.0, 0.0, 0.0]),
@@ -92,7 +102,7 @@ class scalingdeterminer:
             self.physical_workload_callback,
         )
 
-        self.scaling_pub = rospy.Publisher(
+        self.scaling_parameter = rospy.Publisher(
             '/scaling_values',
             Float64MultiArray,
             queue_size=10,
@@ -102,8 +112,6 @@ class scalingdeterminer:
         """
         
         """
-
-        self.last_left_arm_pose = self.left_arm_pose
 
         self.left_arm_pose['position'][0] = msg.position.x
         self.left_arm_pose['position'][1] = msg.position.y
@@ -115,11 +123,14 @@ class scalingdeterminer:
         self.left_arm_pose['orientation'][3] = msg.orientation.z
 
         distance_change = np.linalg.norm(
-            np.array([msg.position.x, msg.position.y, msg.position.z]) - [
-                self.last_left_arm_pose['position'][0],
-                self.last_left_arm_pose['position'][1],
-                self.last_left_arm_pose['position'][2]
-            ]
+            np.array([msg.position.x, msg.position.y, msg.position.z])
+            - np.array(
+                [
+                    self.last_left_arm_pose['position'][0],
+                    self.last_left_arm_pose['position'][1],
+                    self.last_left_arm_pose['position'][2]
+                ]
+            )
         )
         orientation_change = np.arccos(
             np.dot(
@@ -137,22 +148,49 @@ class scalingdeterminer:
             )
         ) * 2 * 180 / np.pi
 
-        if distance_change < 0.05 or orientation_change < 10:
+        curr_time = time.time()
 
-            self.last_movement_time_left = rospy.Time.now()
-            self.arm_hasnt_moved()
+        if curr_time - self.left_timer >= 1:
 
-        else:
-            self.left_dwell = 0
+            # print(
+            #     np.array([msg.position.x, msg.position.y, msg.position.z]),
+            #     np.array(
+            #         [
+            #             self.last_left_arm_pose['position'][0],
+            #             self.last_left_arm_pose['position'][1],
+            #             self.last_left_arm_pose['position'][2]
+            #         ]
+            #     ), "left"
+            # )
 
-        self.left_arm_motion_physical = self.left_arm_physical
+            print(distance_change)
+
+            self.left_timer = curr_time
+
+            if distance_change < 0.05:
+
+                if self.left_first == 0:
+                    self.left_first = 1
+                    self.left_start_stationary = time.time()
+
+                self.last_movement_time_left = time.time()
+                self.arm_hasnt_moved()
+
+            else:
+                print("hit this?")
+                self.left_dwell = 0
+                self.left_first = 0
+
+            self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell / 2.5
+
+            self.last_left_arm_pose['position'] = copy.deepcopy(
+                np.array([msg.position.x, msg.position.y, msg.position.z])
+            )
 
     def __commanded_pose_callback_right(self, msg):
         """
         
         """
-
-        self.last_right_arm_pose = self.right_arm_pose
 
         self.right_arm_pose['position'][0] = msg.position.x
         self.right_arm_pose['position'][1] = msg.position.y
@@ -164,11 +202,14 @@ class scalingdeterminer:
         self.right_arm_pose['orientation'][3] = msg.orientation.z
 
         distance_change = np.linalg.norm(
-            np.array([msg.position.x, msg.position.y, msg.position.z]) - [
-                self.last_right_arm_pose['position'][0],
-                self.last_right_arm_pose['position'][1],
-                self.last_right_arm_pose['position'][2]
-            ]
+            np.array([msg.position.x, msg.position.y, msg.position.z])
+            - np.array(
+                [
+                    self.last_right_arm_pose['position'][0],
+                    self.last_right_arm_pose['position'][1],
+                    self.last_right_arm_pose['position'][2]
+                ]
+            )
         )
         orientation_change = np.arccos(
             np.dot(
@@ -186,20 +227,33 @@ class scalingdeterminer:
             )
         ) * 2 * 180 / np.pi
 
-        if distance_change < 0.05 or orientation_change < 10:
+        curr_time = time.time()
 
-            self.last_movement_time_right = rospy.Time.now()
-            self.arm_hasnt_moved()
+        if curr_time - self.right_timer >= 0.01:
 
-        else:
-            self.right_dwell = 0
+            self.right_timer = curr_time
 
-        self.right_arm_motion_physical = self.right_arm_physical * self.right_dwell
+            if distance_change < 0.05:
+
+                if self.right_first == 0:
+                    self.right_first = 1
+                    self.right_start_stationary = time.time()
+
+                self.last_movement_time_right = time.time()
+                self.arm_hasnt_moved()
+
+            else:
+                self.right_dwell = 0
+                self.right_first = 0
+
+            self.right_arm_motion_physical = self.right_arm_physical * self.right_dwell / 2.5
+
+            self.last_right_arm_pose = copy.deepcopy(self.right_arm_pose)
 
     def arm_hasnt_moved(self):
 
-        self.left_dwell = rospy.Time.now() - self.last_movement_time_right
-        self.right_dwell = rospy.Time.now() - self.last_movement_time_left
+        self.left_dwell = self.last_movement_time_left - self.left_start_stationary
+        self.right_dwell = self.last_movement_time_right - self.right_start_stationary
 
     def proximity_scaling(self):
 
@@ -288,18 +342,26 @@ class scalingdeterminer:
 
             self.left_disengage = 1
 
+        else:
+
+            self.left_disengage = 0
+
         if self.right_arm_motion_physical >= 80:
 
             self.right_disengage = 1
+
+        else:
+
+            self.right_disengage = 0
 
         array_data.data = [
             scaling_value_left, scaling_value_right, self.left_disengage,
             self.right_disengage
         ]
 
-        print(scaling_value_left, scaling_value_right)
+        print(self.left_disengage, self.left_arm_motion_physical)
 
-        self.scaling_pub.publish(array_data)
+        self.scaling_parameter.publish(array_data)
 
 
 def main():
