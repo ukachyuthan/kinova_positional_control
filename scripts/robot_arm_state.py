@@ -163,25 +163,26 @@ class scalingdeterminer:
             #     ), "left"
             # )
 
-            print(distance_change)
+            # print(distance_change)
 
             self.left_timer = curr_time
 
-            if distance_change < 0.05:
+            if distance_change < 0.025:
 
                 if self.left_first == 0:
                     self.left_first = 1
                     self.left_start_stationary = time.time()
 
                 self.last_movement_time_left = time.time()
-                self.arm_hasnt_moved()
+                # self.arm_hasnt_moved()
+                self.left_dwell = self.last_movement_time_left - self.left_start_stationary
 
             else:
-                print("hit this?")
+                # print("hit this?")
                 self.left_dwell = 0
                 self.left_first = 0
 
-            self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell / 2.5
+            self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell / 0.625
 
             self.last_left_arm_pose['position'] = copy.deepcopy(
                 np.array([msg.position.x, msg.position.y, msg.position.z])
@@ -233,7 +234,7 @@ class scalingdeterminer:
 
             self.right_timer = curr_time
 
-            if distance_change < 0.05:
+            if distance_change < 0.025:
 
                 if self.right_first == 0:
                     self.right_first = 1
@@ -245,6 +246,8 @@ class scalingdeterminer:
             else:
                 self.right_dwell = 0
                 self.right_first = 0
+
+            self.right_arm_physical = 78
 
             self.right_arm_motion_physical = self.right_arm_physical * self.right_dwell / 2.5
 
@@ -328,6 +331,8 @@ class scalingdeterminer:
         self.proximity_scaling()
         self.table_scaling()
 
+        # print("????????????????????")
+
         scaling_value_left = min(
             self.scaling_arm_left_prox, self.scaling_arm_left_table
         )
@@ -359,7 +364,7 @@ class scalingdeterminer:
             self.right_disengage
         ]
 
-        print(self.left_disengage, self.left_arm_motion_physical)
+        print(self.left_disengage, self.right_disengage)
 
         self.scaling_parameter.publish(array_data)
 

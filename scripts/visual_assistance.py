@@ -157,6 +157,7 @@ class VisualAssistance:
 
     def image_gen(self):
 
+        # print("skjahdjkshdkjashkdjshajkdhjkH")
         # Receiving and displaying the video frame
         current_frame = copy.deepcopy(self.image_frame)
 
@@ -296,30 +297,30 @@ class VisualAssistance:
             disengage_text_color, 3, cv2.LINE_AA
         )
 
-        if self.left_emergency == 1:
+        if self.left_emergency == 1 or self.left_disengage == 0:
             display_image_left = copy.deepcopy(robot_gray_unavailable_resized)
         elif self.left_emergency == 0:
-            if self.left_disengage == 1:
-                display_image_left = copy.deepcopy(robot_color_resized)
-            elif self.left_disengage_avail == 1:
+            if self.left_disengage_avail == 1:
                 display_image_left = copy.deepcopy(robot_gray_available_resized)
+            elif self.left_disengage == 1:
+                display_image_left = copy.deepcopy(robot_color_resized)
             else:
                 display_image_left = copy.deepcopy(
                     robot_gray_unavailable_resized
                 )
 
-        if self.right_emergency == 1:
+        if self.right_emergency == 1 or self.right_disengage == 0:
             display_image_right = copy.deepcopy(
                 mirrored_image_gray_unavailable_resized
             )
         elif self.right_emergency == 0:
-            if self.right_disengage == 1:
-                display_image_right = copy.deepcopy(
-                    mirrored_image_color_resized
-                )
-            elif self.right_disengage_avail == 1:
+            if self.right_disengage_avail == 1:
                 display_image_right = copy.deepcopy(
                     mirrored_image_gray_available_resized
+                )
+            elif self.right_disengage == 1:
+                display_image_right = copy.deepcopy(
+                    mirrored_image_color_resized
                 )
             else:
                 display_image_right = copy.deepcopy(
