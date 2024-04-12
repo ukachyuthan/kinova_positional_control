@@ -257,7 +257,7 @@ class VisualAssistance:
         if self.left_scaling == 1:
             display_image_left = copy.deepcopy(robot_color_resized)
 
-        elif self.left_scaling_avail == 1:
+        elif self.left_scaling_avail < 1:
             display_image_left = copy.deepcopy(robot_gray_available_resized)
 
         else:
@@ -266,7 +266,7 @@ class VisualAssistance:
         if self.right_scaling == 1:
             display_image_right = copy.deepcopy(mirrored_image_color_resized)
 
-        elif self.right_scaling_avail == 1:
+        elif self.right_scaling_avail < 1:
             display_image_right = copy.deepcopy(
                 mirrored_image_gray_available_resized
             )
