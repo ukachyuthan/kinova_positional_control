@@ -859,17 +859,17 @@ class KinovaTeleoperation:
             #     ),
             # )
 
-            rospy.logerr(
-                (
-                    f'/{self.ROBOT_NAME}/teleoperation: '
-                    f'\nChange in input ORIENTATION exceeded maximum allowed value! '
-                    f'\n- Current input: {np.round(compensated_input_pose["orientation"], 3)}'
-                    f'\n- Previous input: {np.round(self.last_relaxed_ik_pose["orientation"], 3)}'
-                    f'\n- Difference (absolute): {np.round(_input_angular_difference, 3)}'
-                    f'\n- Allowed difference threshold: {np.round(math.degrees(self.MAXIMUM_INPUT_ORIENTATION_CHANGE), 3)}'
-                    '\nStopped input tracking.\n'
-                ),
-            )
+            # rospy.logerr(
+            #     (
+            #         f'/{self.ROBOT_NAME}/teleoperation: '
+            #         f'\nChange in input ORIENTATION exceeded maximum allowed value! '
+            #         f'\n- Current input: {np.round(compensated_input_pose["orientation"], 3)}'
+            #         f'\n- Previous input: {np.round(self.last_relaxed_ik_pose["orientation"], 3)}'
+            #         f'\n- Difference (absolute): {np.round(_input_angular_difference, 3)}'
+            #         f'\n- Allowed difference threshold: {np.round(math.degrees(self.MAXIMUM_INPUT_ORIENTATION_CHANGE), 3)}'
+            #         '\nStopped input tracking.\n'
+            #     ),
+            # )
 
             self.last_relaxed_ik_pose_test = copy.deepcopy(
                 self.last_relaxed_ik_pose

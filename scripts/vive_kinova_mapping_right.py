@@ -213,7 +213,6 @@ class ViveMapping:
         self.gripper_val = self.vive_axes[2]
 
         self.trigger_press = False
-
         self.__scaling_state_machine(self.vive_buttons[3])
 
         if self.gripper_val == 1:  # Trigger button to hold the gripper state

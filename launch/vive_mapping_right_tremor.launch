@@ -47,7 +47,7 @@
     <group ns="/$(arg robot_name)">
         <node 
         pkg="kinova_positional_control" 
-        type="vive_kinova_mapping_right_orientation_multi.py" 
+        type="vive_kinova_mapping_right_orientation_threshold.py" 
         name="vive_kinova_mapping_right" 
         output="screen">
             <param 

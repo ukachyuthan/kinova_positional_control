@@ -164,7 +164,8 @@ class ViveMapping:
         )
 
         rospy.Subscriber(
-            '/scaling_values', Float64MultiArray, self.callback_emergency
+            '/scaling_values', Float64MultiArray,
+            self.callback_scaling_parameters
         )
 
         rospy.Subscriber(
@@ -509,6 +510,7 @@ class ViveMapping:
             )
 
         if self.__control_mode == 'full':
+
             pose_message = Pose()
             pose_message.position.x = self.__input_pose['position'][
                 0] * self.scaled_value

@@ -364,8 +364,7 @@ class scalingdeterminer:
             self.right_disengage
         ]
 
-        print(self.left_disengage, self.right_disengage)
-
+        print(scaling_value_left, scaling_value_right)
         self.scaling_parameter.publish(array_data)
 
 

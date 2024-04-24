@@ -87,13 +87,13 @@ class ViveMapping:
         self.x_positions = [0] * 10
         self.y_positions = [0] * 10
         self.z_positions = [0] * 10
-        self.thresholds_position = [0.0005, 0.001, 0.002]
+        self.thresholds_position = [0.006, 0.006, 0.006]
 
         self.threshold_orientation = 15
         self.roll_positions = [0] * 10
         self.pitch_positions = [0] * 10
         self.yaw_positions = [0] * 10
-        self.thresholds_orientation = [0.25, 0.25, 0.25]
+        self.thresholds_orientation = [0.35, 0.35, 0.35]
 
         self.constraint_activate = 0
         self.constraint_deactivate = 0
@@ -294,13 +294,7 @@ class ViveMapping:
 
         avg_position = np.mean(distances)
 
-        # if axis == 'x':
-
-        #     print(avg_position)
-
         if np.abs(avg_position) >= threshold:
-
-            # print(avg_position, "position", axis)
 
             return 1
 
@@ -315,15 +309,7 @@ class ViveMapping:
 
         avg_position = np.mean(distances)
 
-        # print(avg_position)
-
-        # if axis == 'y':
-
-        #     print('====================================')
-
         if np.abs(avg_position) >= threshold:
-
-            # print(avg_position, "orientation", axis)
 
             return 1, avg_position
 
@@ -348,9 +334,6 @@ class ViveMapping:
 
             count += 1
             axis.append(3)
-
-        # if condn in "p":
-        #     print(axis)
 
         if count == 3:
             return None
@@ -667,9 +650,9 @@ class ViveMapping:
                     if axis == 3:
                         send_z = 1
                     if axis == 4:
-                        send_x = 0.01
-                        send_y = 0.01
-                        send_z = 0.01
+                        send_x = 1
+                        send_y = 1
+                        send_z = 1
 
                 if send_x is None:
                     send_x = 0.01
@@ -715,9 +698,9 @@ class ViveMapping:
                     if axis == 3:
                         send_angle_yaw = 1
                     if axis == 4:
-                        send_angle_roll = 0.01
-                        send_angle_pitch = 0.01
-                        send_angle_yaw = 0.01
+                        send_angle_roll = 1
+                        send_angle_pitch = 1
+                        send_angle_yaw = 1
 
                 if send_angle_roll is None:
                     send_angle_roll = 0.01
@@ -796,32 +779,80 @@ class ViveMapping:
         """
         Control input for scaled motion
         """
+        # print(self.scaled_value)
+        current_time = time.time()
 
-        x_fast = self.__speedchecker_position(self.x_positions)
-        y_fast = self.__speedchecker_position(self.y_positions)
-        z_fast = self.__speedchecker_position(self.z_positions)
+        if current_time - self.last_time >= 0.1:
+            x_fast = self.__speedchecker_position(
+                self.x_positions,
+                'x',
+                self.thresholds_position[0],
+            )
+            y_fast = self.__speedchecker_position(
+                self.y_positions,
+                'y',
+                self.thresholds_position[1],
+            )
+            z_fast = self.__speedchecker_position(
+                self.z_positions,
+                'z',
+                self.thresholds_position[2],
+            )
 
-        self.position_fixture_condn = self.__check_axis(x_fast, y_fast, z_fast)
+            self.position_fixture_condn = self.__check_axis(
+                x_fast,
+                y_fast,
+                z_fast,
+                'p',
+            )
 
-        roll_fast, rr = self.__speedchecker_orientation(self.roll_positions)
-        pitch_fast, rp = self.__speedchecker_orientation(self.pitch_positions)
-        yaw_fast, ry = self.__speedchecker_orientation(self.yaw_positions)
+            roll_fast, rr = self.__speedchecker_orientation(
+                self.roll_positions,
+                'r',
+                self.thresholds_orientation[0],
+            )
+            pitch_fast, rp = self.__speedchecker_orientation(
+                self.pitch_positions,
+                'p',
+                self.thresholds_orientation[1],
+            )
+            yaw_fast, ry = self.__speedchecker_orientation(
+                self.yaw_positions,
+                'y',
+                self.thresholds_orientation[2],
+            )
 
-        self.orientation_fixture_condn = self.__check_axis(
-            roll_fast,
-            pitch_fast,
-            yaw_fast,
-        )
+            self.orientation_fixture_condn = self.__check_axis(
+                roll_fast,
+                pitch_fast,
+                yaw_fast,
+                'o',
+            )
 
-        if self.orientation_fixture_condn and self.__mode_switch == 0:
-            self.__mode_switch = 1
-            self.constraint_activate = 1
-            # print(self.__mode_switch)
+            # current_time = time.time()
+            # if current_time - self.last_time > 0.1:
 
-        elif self.__mode_switch == 1:
-            self.__mode_switch = 0
-            self.constraint_deactivate = 0
-            # print(self.__mode_switch)
+            #     print(self.orientation_fixture_condn)
+            #     self.last_time = current_time
+
+            if self.orientation_fixture_condn or self.position_fixture_condn and self.__mode_switch == 0:
+                self.__mode_switch = 1
+                self.constraint_activate = 1
+                # self.__teleoperation_calculate_compesation(compensation_pose)
+                # print(self.__mode_switch)
+
+            elif self.__mode_switch == 1:
+                self.__mode_switch = 0
+                self.constraint_deactivate = 1
+                # self.__teleoperation_calculate_compesation(compensation_pose)
+                # print(self.__mode_switch)
+
+            self.last_time = current_time
+
+            print(
+                "Scaled", self.scaled_value, self.__mode_switch,
+                self.orientation_fixture_condn
+            )
 
         corrected_input_pose = copy.deepcopy(self.__input_pose)
 
@@ -846,121 +877,77 @@ class ViveMapping:
                 )
             )
 
-        if self.__mode_switch == 0:
+        # if self.__mode_switch == 0:
 
-            pose_message = Pose()
-            pose_message.position.x = self.__input_pose['position'][
-                0] * self.scaled_value
-            pose_message.position.y = self.__input_pose['position'][
-                1] * self.scaled_value
-            pose_message.position.z = self.__input_pose['position'][
-                2] * self.scaled_value
+        #     pose_message = Pose()
+        #     pose_message.position.x = self.__input_pose['position'][
+        #         0] * self.scaled_value
+        #     pose_message.position.y = self.__input_pose['position'][
+        #         1] * self.scaled_value
+        #     pose_message.position.z = self.__input_pose['position'][
+        #         2] * self.scaled_value
 
-            eulers = euler_from_quaternion(
-                [
-                    self.__input_pose['orientation'][1],
-                    self.__input_pose['orientation'][2],
-                    self.__input_pose['orientation'][3],
-                    self.__input_pose['orientation'][0]
-                ]
-            )
+        #     eulers = euler_from_quaternion(
+        #         [
+        #             self.__input_pose['orientation'][1],
+        #             self.__input_pose['orientation'][2],
+        #             self.__input_pose['orientation'][3],
+        #             self.__input_pose['orientation'][0]
+        #         ]
+        #     )
 
-            euler_half = [angle * self.scaled_value for angle in eulers]
+        #     euler_half = [angle * self.scaled_value for angle in eulers]
 
-            quaternion_scaled = quaternion_from_euler(
-                euler_half[0], euler_half[1], euler_half[2]
-            )
+        #     quaternion_scaled = quaternion_from_euler(
+        #         euler_half[0], euler_half[1], euler_half[2]
+        #     )
 
-            pose_message.orientation.w = quaternion_scaled[3]
-            pose_message.orientation.x = quaternion_scaled[0]
-            pose_message.orientation.y = quaternion_scaled[1]
-            pose_message.orientation.z = quaternion_scaled[2]
+        #     pose_message.orientation.w = quaternion_scaled[3]
+        #     pose_message.orientation.x = quaternion_scaled[0]
+        #     pose_message.orientation.y = quaternion_scaled[1]
+        #     pose_message.orientation.z = quaternion_scaled[2]
 
-            # flag: activate tracking after triggering compensation for scaling
-            if self.scale_flag == 1:
+        #     # flag: activate tracking after triggering compensation for scaling
+        #     if self.scale_flag == 1:
 
-                self.scale_flag = 0
-                self.__teleoperation_calculate_compesation(pose_message)
+        #         self.scale_flag = 0
+        #         self.__teleoperation_calculate_compesation(pose_message)
 
-            elif self.scale_change == 1:
+        #     elif self.scale_change == 1:
 
-                self.scale_change = 0
-                self.__teleoperation_calculate_compesation(pose_message)
+        #         self.scale_change = 0
+        #         self.__teleoperation_calculate_compesation(pose_message)
 
-            if self.constraint_deactivate == 1:
+        #     if self.constraint_deactivate == 1:
 
-                self.constraint_deactivate = 0
-                self.__teleoperation_calculate_compesation(pose_message)
+        #         self.constraint_deactivate = 0
+        #         self.__teleoperation_calculate_compesation(pose_message)
 
-            self.__teleoperation_pose.publish(pose_message)
+        #     self.__teleoperation_pose.publish(pose_message)
 
-            self.__last_input_pose = copy.deepcopy(self.__input_pose)
-            self.__last_input_pose['orientation'] = copy.deepcopy(
-                np.asarray(
-                    [
-                        quaternion_scaled[3],
-                        quaternion_scaled[0],
-                        quaternion_scaled[1],
-                        quaternion_scaled[2],
-                    ]
-                )
-            )
+        #     self.__last_input_pose = copy.deepcopy(self.__input_pose)
+        #     self.__last_input_pose['orientation'] = copy.deepcopy(
+        #         np.asarray(
+        #             [
+        #                 quaternion_scaled[3],
+        #                 quaternion_scaled[0],
+        #                 quaternion_scaled[1],
+        #                 quaternion_scaled[2],
+        #             ]
+        #         )
+        #     )
 
-        elif self.__mode_switch == 1:
+        # elif self.__mode_switch == 1:
 
-            # print("here............. scaled")
+        pose_message = Pose()
+        pose_message.position.x = self.__input_pose['position'][
+            0] * self.scaled_value
+        pose_message.position.y = self.__input_pose['position'][
+            1] * self.scaled_value
+        pose_message.position.z = self.__input_pose['position'][
+            2] * self.scaled_value
 
-            eulers = euler_from_quaternion(
-                [
-                    self.__input_pose['orientation'][1],
-                    self.__input_pose['orientation'][2],
-                    self.__input_pose['orientation'][3],
-                    self.__input_pose['orientation'][0]
-                ]
-            )
-
-            euler_half = [angle * self.scaled_value for angle in eulers]
-
-            quaternion_scaled = quaternion_from_euler(
-                euler_half[0], euler_half[1], euler_half[2]
-            )
-
-            send_x = None
-            send_y = None
-            send_z = None
-
-            for axis in self.position_fixture_condn:
-                if axis == 1:
-                    send_x = self.__input_pose['position'][0] * self.scaled_value
-                if axis == 2:
-                    send_y = self.__input_pose['position'][1] * self.scaled_value
-                if axis == 3:
-                    send_z = self.__input_pose['position'][2] * self.scaled_value
-
-            if send_x is None:
-                send_x = self.__last_input_pose['position'][0]
-            if send_y is None:
-                send_y = self.__last_input_pose['position'][1]
-            if send_z is None:
-                send_z = self.__last_input_pose['position'][2]
-
-            r, p, y = euler_from_quaternion(
-                [
-                    self.__input_pose['orientation'][1],
-                    self.__input_pose['orientation'][2],
-                    self.__input_pose['orientation'][3],
-                    self.__input_pose['orientation'][0]
-                ]
-            )
-
-            last_r, last_p, last_y = euler_from_quaternion(
-                [
-                    self.__last_input_pose['orientation'][1],
-                    self.__last_input_pose['orientation'][2],
-                    self.__last_input_pose['orientation'][3],
-                    self.__last_input_pose['orientation'][0]
-                ]
-            )
+        if self.orientation_fixture_condn:
 
             send_angle_roll = None
             send_angle_pitch = None
@@ -968,71 +955,168 @@ class ViveMapping:
 
             for axis in self.orientation_fixture_condn:
                 if axis == 1:
-                    send_angle_roll = (r - last_r) / 2 + last_r
+                    send_angle_roll = 1
                 if axis == 2:
-                    send_angle_pitch = (p - last_p) / 2 + last_p
+                    send_angle_pitch = 1
                 if axis == 3:
-                    send_angle_yaw = (y - last_y) / 2 + last_y
+                    send_angle_yaw = 1
+                if axis == 4:
+                    send_angle_roll = 1
+                    send_angle_pitch = 1
+                    send_angle_yaw = 1
 
             if send_angle_roll is None:
-                send_angle_roll = last_r
+                send_angle_roll = 0.0000001
             if send_angle_pitch is None:
-                send_angle_pitch = last_p
+                send_angle_pitch = 0.0000001
             if send_angle_yaw is None:
-                send_angle_yaw = last_y
+                send_angle_yaw = 0.0000001
 
-            quaternion_added = quaternion_from_euler(
-                send_angle_roll,
-                send_angle_pitch,
-                send_angle_yaw,
+        else:
+
+            send_angle_roll = 1
+            send_angle_pitch = 1
+            send_angle_yaw = 1
+
+        eulers = euler_from_quaternion(
+            [
+                self.__input_pose['orientation'][1],
+                self.__input_pose['orientation'][2],
+                self.__input_pose['orientation'][3],
+                self.__input_pose['orientation'][0]
+            ]
+        )
+
+        scaled_array = [
+            self.scaled_value * send_angle_roll,
+            self.scaled_value * send_angle_pitch,
+            self.scaled_value * send_angle_yaw,
+        ]
+
+        euler_half = [x * y for x, y in zip(eulers, scaled_array)]
+
+        quaternion_scaled = quaternion_from_euler(
+            euler_half[0], euler_half[1], euler_half[2]
+        )
+
+        send_x = None
+        send_y = None
+        send_z = None
+
+        if self.position_fixture_condn:
+
+            for axis in self.position_fixture_condn:
+                if axis == 1:
+                    send_x = 1
+                if axis == 2:
+                    send_y = 1
+                if axis == 3:
+                    send_z = 1
+                if axis == 4:
+                    send_x = 1
+                    send_y = 1
+                    send_z = 1
+
+            if send_x is None:
+                send_x = 0.01
+            if send_y is None:
+                send_y = 0.01
+            if send_z is None:
+                send_z = 0.01
+
+            pose_message.position.x *= send_x
+            pose_message.position.y *= send_y
+            pose_message.position.z *= send_z
+
+        else:
+            pose_message.position.x = self.__input_pose['position'][0]
+            pose_message.position.y = self.__input_pose['position'][1]
+            pose_message.position.z = self.__input_pose['position'][2]
+
+        # if self.orientation_fixture_condn:
+
+        #     r, p, y = euler_from_quaternion(
+        #         [
+        #             quaternion_scaled[1],
+        #             quaternion_scaled[2],
+        #             quaternion_scaled[3],
+        #             quaternion_scaled[0],
+        #         ]
+        #     )
+
+        #     send_angle_roll = None
+        #     send_angle_pitch = None
+        #     send_angle_yaw = None
+
+        #     for axis in self.orientation_fixture_condn:
+        #         if axis == 1:
+        #             send_angle_roll = 1
+        #         if axis == 2:
+        #             send_angle_pitch = 1
+        #         if axis == 3:
+        #             send_angle_yaw = 1
+        #         if axis == 4:
+        #             send_angle_roll = 1
+        #             send_angle_pitch = 1
+        #             send_angle_yaw = 1
+
+        #     if send_angle_roll is None:
+        #         send_angle_roll = 0.0000001
+        #     if send_angle_pitch is None:
+        #         send_angle_pitch = 0.0000001
+        #     if send_angle_yaw is None:
+        #         send_angle_yaw = 0.0000001
+
+        #     quaternion_constraint = quaternion_from_euler(
+        #         r * send_angle_roll,
+        #         p * send_angle_pitch,
+        #         y * send_angle_yaw,
+        #     )
+
+        #     # print(
+        #     #     math.degrees(r * send_angle_roll),
+        #     #     math.degrees(p * send_angle_pitch),
+        #     #     math.degrees(y * send_angle_yaw),
+        #     # )
+
+        # else:
+
+        #     quaternion_constraint = copy.deepcopy(quaternion_scaled)
+
+        pose_message.orientation.w = quaternion_scaled[3]
+        pose_message.orientation.x = quaternion_scaled[0]
+        pose_message.orientation.y = quaternion_scaled[1]
+        pose_message.orientation.z = quaternion_scaled[2]
+
+        # flag: activate tracking after triggering compensation for scaling
+        if self.scale_flag == 1:
+
+            self.scale_flag = 0
+            self.__teleoperation_calculate_compesation(pose_message)
+
+        elif self.scale_change == 1:
+
+            self.scale_change = 0
+            self.__teleoperation_calculate_compesation(pose_message)
+
+        if self.constraint_activate == 1:
+
+            self.constraint_activate = 0
+            self.__teleoperation_calculate_compesation(pose_message)
+
+        self.__teleoperation_pose.publish(pose_message)
+
+        self.__last_input_pose = copy.deepcopy(self.__input_pose)
+        self.__last_input_pose['orientation'] = copy.deepcopy(
+            np.asarray(
+                [
+                    quaternion_scaled[3],
+                    quaternion_scaled[0],
+                    quaternion_scaled[1],
+                    quaternion_scaled[2],
+                ]
             )
-
-            pose_message = Pose()
-            pose_message.position.x = send_x
-            pose_message.position.y = send_y
-            pose_message.position.z = send_z
-
-            pose_message.orientation.w = quaternion_added[3]
-            pose_message.orientation.x = quaternion_added[0]
-            pose_message.orientation.y = quaternion_added[1]
-            pose_message.orientation.z = quaternion_added[2]
-
-            # flag: activate tracking after triggering compensation for scaling
-            if self.scale_flag == 1:
-
-                self.scale_flag = 0
-                self.__teleoperation_calculate_compesation(pose_message)
-
-            elif self.scale_change == 1:
-
-                self.scale_change = 0
-                self.__teleoperation_calculate_compesation(pose_message)
-
-            if self.constraint_activate == 1:
-
-                self.constraint_activate = 0
-                self.__teleoperation_calculate_compesation(pose_message)
-
-            # self.__teleoperation_pose.publish(pose_message)
-
-            self.__last_input_pose = copy.deepcopy(self.__input_pose)
-            self.__last_input_pose['position'] = copy.deepcopy(
-                np.asarray([
-                    send_x,
-                    send_y,
-                    send_z,
-                ])
-            )
-            self.__last_input_pose['orientation'] = copy.deepcopy(
-                np.asarray(
-                    [
-                        quaternion_added[3],
-                        quaternion_added[0],
-                        quaternion_added[1],
-                        quaternion_added[2],
-                    ]
-                )
-            )
+        )
 
     # # Public methods:
     def main_loop(self):
