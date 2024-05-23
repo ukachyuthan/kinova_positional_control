@@ -53,6 +53,7 @@ class VisualAssistance:
         # NOTE: By default all new class variables should be private.
         self.image_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         self.secondary_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        self.secondary_frame_arm = np.zeros((480, 640, 3), dtype=np.uint8)
         self.combined_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         self.key = 0
         self.node_rate = rospy.Rate(1000)
@@ -78,6 +79,8 @@ class VisualAssistance:
         self.right_disengage_avail = 0
         self.right_emergency = 0
 
+        self.keyboard_condn = 1
+
         # # Public variables:
         self.public_variable = 1
 
@@ -85,14 +88,19 @@ class VisualAssistance:
 
         # # Topic subscriber:
         rospy.Subscriber(
-            '/camera/color/image_raw',
+            '/camera1/color/image_raw',
             Image,
             self.callback_image,
         )
         rospy.Subscriber(
-            '/left/color/image_raw',
+            '/camera2/color/image_raw',
             Image,
             self.callback_sec,
+        )
+        rospy.Subscriber(
+            '/right/color/image_raw',
+            Image,
+            self.callback_sec_arm,
         )
         rospy.Subscriber(
             '/scaling_values',
@@ -168,23 +176,57 @@ class VisualAssistance:
 
         self.secondary_frame = br.imgmsg_to_cv2(message, "bgr8")
 
+    def callback_sec_arm(self, message):
+        """
+
+        """
+        br = CvBridge()
+
+        self.secondary_frame_arm = br.imgmsg_to_cv2(message, "bgr8")
+
     # # Process functions:
     def secondary_add(self):
 
-        resized_frame = cv2.resize(
-            self.secondary_frame,
-            (200, 150),
-            interpolation=cv2.INTER_AREA,
-        )
+        if self.keyboard_condn == 1:  # camera arm
+            resized_frame = cv2.resize(
+                self.secondary_frame_arm,
+                (200, 150),
+                interpolation=cv2.INTER_AREA,
+            )
+        else:
+            # Calculate coordinates of smaller rectangle
+            center_x = self.secondary_frame.shape[1] // 2
+            center_y = self.secondary_frame.shape[0] // 2 - 100
+
+            rect_width = 400
+            rect_height = 300
+            top_left_x = max(center_x - rect_width // 2, 0)
+            top_left_y = max(center_y - rect_height // 2, 0)
+            bottom_right_x = min(
+                center_x + rect_width // 2, self.secondary_frame.shape[1]
+            )
+            bottom_right_y = min(
+                center_y + rect_height // 2, self.secondary_frame.shape[0]
+            )
+
+            # Extract region of interest (ROI)
+            roi = self.secondary_frame[top_left_y:bottom_right_y,
+                                       top_left_x:bottom_right_x]
+
+            # Resize ROI to original size of 200x150
+            resized_roi = cv2.resize(roi, (200, 150))
+
+            resized_frame = resized_roi
 
         self.combined_frame = copy.deepcopy(self.image_frame)
 
-        self.combined_frame[328:478, 438:638] = resized_frame
+        self.combined_frame[290:478,
+                            388:638] = cv2.resize(resized_frame, (250, 188))
 
         cv2.rectangle(
             self.combined_frame,
-            (438, 478),
-            (638, 328),
+            (388, 478),
+            (638, 290),
             (255, 255, 255),
             2,
         )
@@ -200,7 +242,7 @@ class VisualAssistance:
             mid_y_ar = int((corner[0][0][1] + corner[0][2][1]) / 2)
 
             cv2.circle(
-                self.secondary_frame,
+                self.secondary_frame_arm,
                 (int(mid_x_ar), int(mid_y_ar)),
                 50,
                 color,
@@ -216,8 +258,10 @@ class VisualAssistance:
             arucoParameters = aruco.DetectorParameters()
             detector = aruco.ArucoDetector(aruco_dict, arucoParameters)
             corners, ids, rejectedImgPoints = detector.detectMarkers(
-                self.secondary_frame
+                self.secondary_frame_arm
             )
+
+            # print(ids)
 
             # TODO: Change ID Numbers to be consecutive (203, 204, 205)
             self.place_circle(corners, ids, 203, (0, 255, 0))
@@ -452,6 +496,9 @@ class VisualAssistance:
         self.out_send.write(output_frame_resized)
 
         self.key = cv2.waitKey(1)
+
+        if self.key == 81 or self.key == 83:  # Left or Right arrow key
+            self.keyboard_condn = 2 if self.keyboard_condn == 1 else 1
 
     def main_loop(self):
 

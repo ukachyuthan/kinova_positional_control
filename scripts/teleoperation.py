@@ -893,6 +893,8 @@ class KinovaTeleoperation:
         self.__mode_state_machine(self.__mode_button)
         self.__emergency_publish.publish(self.emergency_stop)
 
+        # print(self.__tracking_state_machine_state)
+
         if self.__pose_tracking:
             self.__publish_kinova_pose()
 

@@ -31,6 +31,7 @@ from std_msgs.msg import Float64MultiArray
 
 from kinova_positional_control.srv import (CalculateCompensation)
 import time
+from std_msgs.msg import String, Float64, Float64MultiArray
 
 
 class ViveMapping:
@@ -75,6 +76,8 @@ class ViveMapping:
         self.right_orientation_active = 0
         self.right_disengage = 0
 
+        self.last_right_emergency = 0
+
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
@@ -102,6 +105,8 @@ class ViveMapping:
 
         self.poisition_fixture_condn = None
         self.orientation_fixture_condn = None
+
+        self.right_emergency = 3
 
         self.__mode_switch = 0  # 0 = full, 1 = intent inference mode
 
@@ -191,7 +196,26 @@ class ViveMapping:
             self.callback_scaling_parameters
         )
 
+        rospy.Subscriber(
+            '/right/emergency_topic',
+            Float64,
+            self.callback_emergency_right,
+        )
+
     # # Dependency status callbacks:
+    def callback_emergency_right(self, message):
+
+        self.last_right_emergency = self.right_emergency
+
+        self.right_emergency = message.data
+
+        if self.right_emergency == 1 and (
+            self.right_emergency != self.last_right_emergency
+        ):
+            # print("_____________________________________________________")
+            self.__tracking_state_machine_state = 0
+            self.right_disengage = 0
+
     def __teleoperation_callback(self, message):
         """Monitors teleoperation is_initialized topic.
         
@@ -361,6 +385,8 @@ class ViveMapping:
 
             self.right_disengage = 1
             self.__tracking_state_machine_state = 1
+
+            print("check__________________", self.right_emergency)
 
         # State 1: Grip button was released. Tracking is activated.
         elif (self.__tracking_state_machine_state == 1 and not button):
@@ -1151,6 +1177,11 @@ class ViveMapping:
             ]
         )
         self.__right_parameter_publisher.publish(right_data)
+
+        # print(
+        #     self.__tracking_state_machine_state, self.right_emergency,
+        #     self.right_disengage
+        # )
 
     def node_shutdown(self):
         """
