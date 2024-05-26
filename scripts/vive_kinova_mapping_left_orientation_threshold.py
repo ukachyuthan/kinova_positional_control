@@ -30,8 +30,8 @@ euler_from_quaternion
 from std_msgs.msg import Float64MultiArray
 
 from kinova_positional_control.srv import (CalculateCompensation)
-
 import time
+from std_msgs.msg import String, Float64, Float64MultiArray
 
 
 class ViveMapping:
@@ -76,6 +76,8 @@ class ViveMapping:
         self.left_orientation_active = 0
         self.left_disengage = 0
 
+        self.last_left_emergency = 0
+
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
         self.vive_axes = [0, 0, 0]
@@ -103,6 +105,8 @@ class ViveMapping:
 
         self.poisition_fixture_condn = None
         self.orientation_fixture_condn = None
+
+        self.left_emergency = 3
 
         self.__mode_switch = 0  # 0 = full, 1 = intent inference mode
 
@@ -192,7 +196,26 @@ class ViveMapping:
             self.callback_scaling_parameters
         )
 
+        rospy.Subscriber(
+            '/left/emergency_topic',
+            Float64,
+            self.callback_emergency_right,
+        )
+
     # # Dependency status callbacks:
+    def callback_emergency_right(self, message):
+
+        self.last_left_emergency = self.left_emergency
+
+        self.left_emergency = message.data
+
+        if self.left_emergency == 1 and (
+            self.left_emergency != self.last_left_emergency
+        ):
+            # print("_____________________________________________________")
+            self.__tracking_state_machine_state = 0
+            self.left_disengage = 0
+
     def __teleoperation_callback(self, message):
         """Monitors teleoperation is_initialized topic.
         
