@@ -17,7 +17,7 @@ from kinova_positional_control.srv import (
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import TransformStamped, Pose
 
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, Float64
 import copy
 import time
 
@@ -49,6 +49,19 @@ class scalingdeterminer:
 
         self.left_disengage = 0
         self.right_disengage = 0
+
+        self.left_active = 0
+        self.right_active = 0
+        self.last_left_active = 0
+        self.last_right_active = 0
+        self.left_active_start_time = 0
+        self.right_active_start_time = 0
+        self.left_emergency = 0
+        self.last_left_emergency = 0
+        self.right_emergency = 0
+        self.last_right_emergency = 0
+        self.left_active_time = 0
+        self.right_active_time = 0
 
         self.left_dwell = 0
         self.right_dwell = 0
@@ -97,7 +110,7 @@ class scalingdeterminer:
         )
 
         rospy.Subscriber(
-            '/comparison_workload_vive',
+            '/updated_physical_workload',
             Float64MultiArray,
             self.physical_workload_callback,
         )
@@ -107,6 +120,68 @@ class scalingdeterminer:
             Float64MultiArray,
             queue_size=10,
         )
+
+        rospy.Subscriber(
+            '/left/ui_parameters',
+            Float64MultiArray,
+            self.callback_left_parameters,
+        )
+
+        rospy.Subscriber(
+            '/left/emergency_topic',
+            Float64,
+            self.callback_emergency_left,
+        )
+
+        rospy.Subscriber(
+            '/right/ui_parameters',
+            Float64MultiArray,
+            self.callback_right_parameters,
+        )
+
+        rospy.Subscriber(
+            '/right/emergency_topic',
+            Float64,
+            self.callback_emergency_right,
+        )
+
+    def callback_emergency_left(self, message):
+
+        self.left_emergency = message.data
+
+    def callback_emergency_right(self, message):
+
+        self.right_emergency = message.data
+
+    def callback_left_parameters(self, message):
+
+        self.left_active = message.data[1]
+
+        if self.left_emergency == 1:
+
+            self.left_active = 0
+
+        if self.last_left_active == 0 and self.left_active == 1:
+
+            print("check_________")
+
+            self.left_active_start_time = time.time()
+
+        self.last_left_active = self.left_active
+
+    def callback_right_parameters(self, message):
+
+        self.right_active = message.data[1]
+
+        if self.right_emergency == 1:
+
+            self.right_active = 0
+
+        if self.last_right_active == 0 and self.right_active == 1:
+
+            self.right_active_start_time = time.time()
+
+        self.last_right_active = self.right_active
 
     def __commanded_pose_callback_left(self, msg):
         """
@@ -149,22 +224,11 @@ class scalingdeterminer:
         ) * 2 * 180 / np.pi
 
         curr_time = time.time()
+        self.left_active_time = 0
+        if self.left_active_start_time != 0:
+            self.left_active_time = curr_time - self.left_active_start_time
 
-        if curr_time - self.left_timer >= 1:
-
-            # print(
-            #     np.array([msg.position.x, msg.position.y, msg.position.z]),
-            #     np.array(
-            #         [
-            #             self.last_left_arm_pose['position'][0],
-            #             self.last_left_arm_pose['position'][1],
-            #             self.last_left_arm_pose['position'][2]
-            #         ]
-            #     ), "left"
-            # )
-
-            # print(distance_change)
-
+        if curr_time - self.left_timer >= 1 and self.left_active_time > 3:
             self.left_timer = curr_time
 
             if distance_change < 0.025:
@@ -174,19 +238,16 @@ class scalingdeterminer:
                     self.left_start_stationary = time.time()
 
                 self.last_movement_time_left = time.time()
-                # self.arm_hasnt_moved()
-                self.left_dwell = self.last_movement_time_left - self.left_start_stationary
+                self.arm_hasnt_moved()
 
             else:
                 # print("hit this?")
                 self.left_dwell = 0
                 self.left_first = 0
 
-            self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell / 0.625
+            self.left_arm_motion_physical = self.left_arm_physical * self.left_dwell / 2.5
 
-            self.last_left_arm_pose['position'] = copy.deepcopy(
-                np.array([msg.position.x, msg.position.y, msg.position.z])
-            )
+            self.last_left_arm_pose = copy.deepcopy(self.left_arm_pose)
 
     def __commanded_pose_callback_right(self, msg):
         """
@@ -229,8 +290,15 @@ class scalingdeterminer:
         ) * 2 * 180 / np.pi
 
         curr_time = time.time()
+        self.right_active_time = 0
+        if self.right_active_start_time != 0:
+            self.right_active_time = float(
+                curr_time - self.right_active_start_time
+            )
 
-        if curr_time - self.right_timer >= 0.01:
+        # print(self.right_active_time)
+
+        if curr_time - self.right_timer >= 0.01 and self.right_active_time > 3:
 
             self.right_timer = curr_time
 
@@ -247,7 +315,7 @@ class scalingdeterminer:
                 self.right_dwell = 0
                 self.right_first = 0
 
-            self.right_arm_physical = 78
+            # self.right_arm_physical = 78
 
             self.right_arm_motion_physical = self.right_arm_physical * self.right_dwell / 2.5
 
@@ -255,8 +323,10 @@ class scalingdeterminer:
 
     def arm_hasnt_moved(self):
 
-        self.left_dwell = self.last_movement_time_left - self.left_start_stationary
-        self.right_dwell = self.last_movement_time_right - self.right_start_stationary
+        if not isinstance(self.left_start_stationary, int):
+            self.left_dwell = self.last_movement_time_left - self.left_start_stationary
+        if not isinstance(self.right_start_stationary, int):
+            self.right_dwell = self.last_movement_time_right - self.right_start_stationary
 
     def proximity_scaling(self):
 
@@ -359,12 +429,18 @@ class scalingdeterminer:
 
             self.right_disengage = 0
 
+        if self.right_disengage == 1 and self.right_active_time <= 3:
+            self.right_disengage = 0
+
+        if self.left_disengage == 1 and self.left_active_time <= 3:
+            self.left_disengage = 0
+
         array_data.data = [
             scaling_value_left, scaling_value_right, self.left_disengage,
             self.right_disengage
         ]
 
-        print(scaling_value_left, scaling_value_right)
+        print(array_data, self.left_arm_physical, self.left_dwell)
         self.scaling_parameter.publish(array_data)
 
 

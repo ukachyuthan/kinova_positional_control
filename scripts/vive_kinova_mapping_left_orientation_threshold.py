@@ -76,6 +76,11 @@ class ViveMapping:
         self.left_orientation_active = 0
         self.left_disengage = 0
 
+        self.disengage_avail = 0
+        self.last_disengage_avail = 0
+        self.disengage = 0
+        self.disengage_start_time = time.time()
+
         self.last_left_emergency = 0
 
         self.gripper_val = 0
@@ -105,6 +110,7 @@ class ViveMapping:
 
         self.poisition_fixture_condn = None
         self.orientation_fixture_condn = None
+        self.filter_param = False
 
         self.left_emergency = 3
 
@@ -179,6 +185,16 @@ class ViveMapping:
             Float64MultiArray,
             queue_size=1,
         )
+        self.__filter_publisher = rospy.Publisher(
+            f'/{self.ROBOT_NAME}/filter_parameter',
+            Bool,
+            queue_size=1,
+        )
+        self.__disengage_check_publisher = rospy.Publisher(
+            f'/{self.ROBOT_NAME}/disengage_time',
+            Float64,
+            queue_size=1,
+        )
 
         # # Topic subscriber:
         rospy.Subscriber(
@@ -203,6 +219,7 @@ class ViveMapping:
         )
 
     # # Dependency status callbacks:
+
     def callback_emergency_right(self, message):
 
         self.last_left_emergency = self.left_emergency
@@ -308,7 +325,45 @@ class ViveMapping:
         self.last_scaled_value = self.scaled_value
         self.scaled_value = scaling_array.data[0]
 
+        self.disengage_avail = scaling_array.data[2]
+
+        # self.last_disengage_avail = 0
+
+        if self.last_disengage_avail == 0 and self.disengage_avail == 1 and self.left_disengage == 1:
+
+            print("start")
+
+            self.disengage_start_time = time.time()
+
+        self.last_disengage_avail = self.disengage_avail
+
     # # Private methods:
+    def filter_check(self):
+
+        if self.poisition_fixture_condn or self.orientation_fixture_condn:
+            if self.position_fixture_condn:
+                a1 = np.asarray(self.position_fixture_condn)
+                a2 = np.asarray([1, 2, 3])
+
+                check_ = np.isin(a1, a2)
+
+                if True in check_:
+                    return True
+
+            if self.orientation_fixture_condn:
+                a1 = np.asarray(self.orientation_fixture_condn)
+                a2 = np.asarray([1, 2, 3])
+
+                check_ = np.isin(a1, a2)
+
+                if True in check_:
+                    return True
+
+            return False
+
+        else:
+            return False
+
     def __speedchecker_position(self, position_list, axis, threshold):
 
         distances = [
@@ -413,6 +468,10 @@ class ViveMapping:
 
             self.__tracking_state_machine_state = 3
             self.left_disengage = 0
+
+            if self.disengage_avail == 1 and self.left_emergency == 0:
+                time_ = time.time() - self.disengage_start_time
+                self.__disengage_check_publisher.publish(float(time_))
 
         # State 3: Grip button was released.
         elif (self.__tracking_state_machine_state == 3 and not button):
@@ -623,7 +682,7 @@ class ViveMapping:
 
             self.last_time = current_time
 
-            print(self.__mode_switch, self.position_fixture_condn)
+            # print(self.position_fixture_condn, self.orientation_fixture_condn)
 
         corrected_input_pose = copy.deepcopy(self.__input_pose)
 
@@ -1180,6 +1239,9 @@ class ViveMapping:
         elif self.__scaling_motion == 'slow':
             self.__publish_teleoperation_pose_scaled()
 
+        self.filter_param = self.filter_check()
+
+        self.__filter_publisher.publish(self.filter_param)
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])
         self.__teleoperation_gripper_button.publish(self.trigger_press)
         self.__teleoperation_mode_button.publish(self.vive_buttons[0])
@@ -1192,6 +1254,8 @@ class ViveMapping:
             ]
         )
         self.__left_parameter_publisher.publish(left_data)
+
+        # print(self.disengage_avail, self.disengage_start_time)
 
     def node_shutdown(self):
         """
