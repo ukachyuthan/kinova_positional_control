@@ -196,6 +196,12 @@ class ViveMapping:
             queue_size=1,
         )
 
+        self.__disengage_trigger_publisher = rospy.Publisher(
+            f'/{self.ROBOT_NAME}/disengage_trigger',
+            Float64MultiArray,
+            queue_size=1,
+        )
+
         # # Topic subscriber:
         rospy.Subscriber(
             '/Left_Hand',
@@ -1254,6 +1260,16 @@ class ViveMapping:
             ]
         )
         self.__left_parameter_publisher.publish(left_data)
+
+        disengage_data = Float64MultiArray()
+        disengage_data.data = np.asarray(
+            [
+                self.disengage_avail,
+                self.
+                __tracking_state_machine_state,  # tracking state 3 = triggered
+            ]
+        )
+        self.__disengage_trigger_publisher.publish(disengage_data)
 
         # print(self.disengage_avail, self.disengage_start_time)
 

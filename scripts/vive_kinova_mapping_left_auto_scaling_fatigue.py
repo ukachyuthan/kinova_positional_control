@@ -74,6 +74,8 @@ class ViveMapping:
         self.left_scaling_active = 0
         self.left_orientation_active = 0
         self.left_disengage = 0
+        self.disengage_avail = 0
+        self.last_disengage_avail = 0
 
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
@@ -230,11 +232,14 @@ class ViveMapping:
         self.last_scaled_value = self.scaled_value
         self.scaled_value = scaling_array.data[0]
 
-        self.disengage_avail = scaling_array.data[3]
+        self.disengage_avail = scaling_array.data[2]
+
+        if self.disengage_avail != 1 and self.scaled_value < 1:
+            self.scaled_value = 1
 
         # self.last_disengage_avail = 0
 
-        if self.last_disengage_avail == 0 and self.disengage_avail == 1 and self.right_disengage == 1:
+        if self.last_disengage_avail == 0 and self.disengage_avail == 1 and self.left_disengage == 1:
 
             print("start")
 
@@ -393,6 +398,7 @@ class ViveMapping:
         # # STEP 1: Table or Head mode correction.
         # If the headset is located on table invert position X and Y axis,
         # rotate orientation quaternion by 180 degrees around Z.
+
         if self.HEADSET_MODE == 'table':
             corrected_input_pose['position'][0] = (
                 -1 * self.__input_pose['position'][0]
@@ -547,6 +553,8 @@ class ViveMapping:
             ]
         )
         self.__disengage_trigger_publisher.publish(disengage_data)
+
+        print(self.scaled_value, self.disengage_avail)
 
     def node_shutdown(self):
         """

@@ -1,16 +1,24 @@
 <?xml version="1.0"?>
 <launch>
 
-    <arg name="secondary" default="false"/>
+    <arg name="mode1" default="false"/>
+    <arg name="mode2" default="false"/>
+    <arg name="mode3" default="false"/>
 
-    <group if="$(arg secondary)">
+    <group if="$(arg mode1)">
         <!-- Launch the visual_assistance_secondary.py node -->
         <node pkg="kinova_positional_control" type="visual_assistance_secondary.py" name="visual_assistance_node" output="screen"/>
     </group>
     
-    <group unless="$(arg secondary)">
-        <!-- Launch the visual_assistance.py node -->
-        <node pkg="kinova_positional_control" type="visual_assistance.py" name="visual_assistance_node" output="screen"/>
+    <group if="$(arg mode2)">
+        <!-- Launch the visual_assistance_fatigue.py node -->
+        <node pkg="kinova_positional_control" type="visual_assistance_fatigue.py" name="visual_assistance_node" output="screen"/>
     </group>
+
+    <group if="$(arg mode3)">
+        <!-- Launch the visual_assistance_tremor.py node -->
+        <node pkg="kinova_positional_control" type="visual_assistance_tremor.py" name="visual_assistance_node" output="screen"/>
+    </group>
+
 
 </launch>

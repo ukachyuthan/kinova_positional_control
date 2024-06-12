@@ -28,9 +28,9 @@ from tf.transformations import quaternion_from_euler, quaternion_multiply, \
 euler_from_quaternion
 
 from std_msgs.msg import Float64MultiArray, Float64
+import time
 
 from kinova_positional_control.srv import (CalculateCompensation)
-import time
 
 
 class ViveMapping:
@@ -71,9 +71,11 @@ class ViveMapping:
         self.scale_flag = 0
         self.unscale_flag = 0
         self.scale_change = 0
-        self.left_scaling_active = 0
-        self.left_orientation_active = 0
-        self.left_disengage = 0
+        self.right_scaling_active = 0
+        self.right_orientation_active = 0
+        self.right_disengage = 0
+        self.disengage_avail = 0
+        self.last_disengage_avail = 0
 
         self.gripper_val = 0
         self.vive_buttons = [0, 0, 0, 0]
@@ -147,8 +149,8 @@ class ViveMapping:
             queue_size=1,
         )
 
-        self.__left_parameter_publisher = rospy.Publisher(
-            '/left/ui_parameters',
+        self.__right_parameter_publisher = rospy.Publisher(
+            '/right/ui_parameters',
             Float64MultiArray,
             queue_size=1,
         )
@@ -161,13 +163,13 @@ class ViveMapping:
 
         # # Topic subscriber:
         rospy.Subscriber(
-            '/Left_Hand',
+            '/Right_Hand',
             TransformStamped,
             self.__input_pose_callback,
         )
 
         rospy.Subscriber(
-            '/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_b
+            '/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_b
         )
 
         rospy.Subscriber(
@@ -176,7 +178,7 @@ class ViveMapping:
         )
 
         rospy.Subscriber(
-            '/left/emergency_topic', Float64, self.callback_emergency
+            '/right/emergency_topic', Float64, self.callback_emergency
         )
 
     # # Dependency status callbacks:
@@ -220,6 +222,7 @@ class ViveMapping:
         self.gripper_val = self.vive_axes[2]
 
         self.trigger_press = False
+
         # self.__scaling_state_machine(self.vive_buttons[3])
 
         if self.gripper_val == 1:  # Trigger button to hold the gripper state
@@ -232,6 +235,9 @@ class ViveMapping:
 
         self.disengage_avail = scaling_array.data[3]
 
+        if self.disengage_avail != 1 and self.scaled_value < 1:
+            self.scaled_value = 1
+
         # self.last_disengage_avail = 0
 
         if self.last_disengage_avail == 0 and self.disengage_avail == 1 and self.right_disengage == 1:
@@ -243,7 +249,6 @@ class ViveMapping:
         self.last_disengage_avail = self.disengage_avail
 
     # # Private methods:
-
     def __scaling_value_state_machine(self):
         """
         
@@ -260,7 +265,7 @@ class ViveMapping:
         # State 0: Grip button was pressed.
         if (self.__tracking_state_machine_state == 0 and button):
 
-            self.left_disengage = 1
+            self.right_disengage = 1
             self.__tracking_state_machine_state = 1
 
         # State 1: Grip button was released. Tracking is activated.
@@ -273,9 +278,9 @@ class ViveMapping:
 
             self.__tracking_state_machine_state = 3
             if self.emergency_stop == 0:
-                self.left_disengage = 0
+                self.right_disengage = 0
             else:
-                self.left_disengage = 1
+                self.right_disengage = 1
                 self.__tracking_state_machine_state = 2
 
         # State 3: Grip button was released.
@@ -293,7 +298,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 1
             self.__control_mode = 'full'
-            self.left_orientation_active = 0
+            self.right_orientation_active = 0
 
         # State 1: Button was released.
         elif (self.__mode_state_machine_state == 1 and not button):
@@ -305,7 +310,7 @@ class ViveMapping:
 
             self.__mode_state_machine_state = 3
             self.__control_mode = 'position'
-            self.left_orientation_active = 1
+            self.right_orientation_active = 1
 
         # State 3: Button was released.
         elif (self.__mode_state_machine_state == 3 and not button):
@@ -393,6 +398,7 @@ class ViveMapping:
         # # STEP 1: Table or Head mode correction.
         # If the headset is located on table invert position X and Y axis,
         # rotate orientation quaternion by 180 degrees around Z.
+
         if self.HEADSET_MODE == 'table':
             corrected_input_pose['position'][0] = (
                 -1 * self.__input_pose['position'][0]
@@ -412,7 +418,7 @@ class ViveMapping:
             )
 
         if self.__control_mode == 'full':
-
+            print(self.scaled_value)
             pose_message = Pose()
             pose_message.position.x = self.__input_pose['position'][
                 0] * self.scaled_value
@@ -528,15 +534,15 @@ class ViveMapping:
         self.__teleoperation_tracking_button.publish(self.vive_buttons[2])
         self.__teleoperation_gripper_button.publish(self.trigger_press)
         self.__teleoperation_mode_button.publish(self.vive_buttons[0])
-        left_data = Float64MultiArray()
-        left_data.data = np.asarray(
+        right_data = Float64MultiArray()
+        right_data.data = np.asarray(
             [
-                self.left_scaling_active,
-                self.left_disengage,
-                self.left_orientation_active,
+                self.right_scaling_active,
+                self.right_disengage,
+                self.right_orientation_active,
             ]
         )
-        self.__left_parameter_publisher.publish(left_data)
+        self.__right_parameter_publisher.publish(right_data)
 
         disengage_data = Float64MultiArray()
         disengage_data.data = np.asarray(
@@ -568,7 +574,7 @@ def main():
     """
 
     rospy.init_node(
-        'vive_mapping_left',
+        'vive_mapping_right',
         log_level=rospy.INFO,  # TODO: Make this a launch file parameter.
     )
 

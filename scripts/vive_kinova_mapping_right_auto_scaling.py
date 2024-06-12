@@ -28,6 +28,7 @@ from tf.transformations import quaternion_from_euler, quaternion_multiply, \
 euler_from_quaternion
 
 from std_msgs.msg import Float64MultiArray, Float64
+import time
 
 from kinova_positional_control.srv import (CalculateCompensation)
 
@@ -152,6 +153,12 @@ class ViveMapping:
             queue_size=1,
         )
 
+        self.__disengage_trigger_publisher = rospy.Publisher(
+            f'/{self.ROBOT_NAME}/disengage_trigger',
+            Float64MultiArray,
+            queue_size=1,
+        )
+
         # # Topic subscriber:
         rospy.Subscriber(
             '/Right_Hand',
@@ -222,9 +229,19 @@ class ViveMapping:
     def callback_scaling_parameters(self, scaling_array):
 
         self.last_scaled_value = self.scaled_value
-        self.scaled_value = scaling_array.data[1]
-        if self.scaled_value < 1:
-            self.right_scaling_active = 1
+        self.scaled_value = scaling_array.data[0]
+
+        self.disengage_avail = scaling_array.data[3]
+
+        # self.last_disengage_avail = 0
+
+        if self.last_disengage_avail == 0 and self.disengage_avail == 1 and self.right_disengage == 1:
+
+            print("start")
+
+            self.disengage_start_time = time.time()
+
+        self.last_disengage_avail = self.disengage_avail
 
     # # Private methods:
     def __scaling_value_state_machine(self):
@@ -520,6 +537,16 @@ class ViveMapping:
             ]
         )
         self.__right_parameter_publisher.publish(right_data)
+
+        disengage_data = Float64MultiArray()
+        disengage_data.data = np.asarray(
+            [
+                self.disengage_avail,
+                self.
+                __tracking_state_machine_state,  # tracking state 3 = triggered
+            ]
+        )
+        self.__disengage_trigger_publisher.publish(disengage_data)
 
     def node_shutdown(self):
         """

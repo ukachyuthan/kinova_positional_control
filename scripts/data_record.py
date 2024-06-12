@@ -14,5 +14,5 @@ name_of_file = args.filename[-1]
 
 os.system(
     'rosbag record -O' + name_of_file +
-    '.bag /updated_physical_workload /Pupil /left/disengage_time /right/disengage_time'
+    '.bag /updated_physical_workload /Pupil /left/disengage_time /right/disengage_time /left/disengage_trigger /right/disengage_trigger'
 )
